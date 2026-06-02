@@ -76,3 +76,12 @@ jobs:
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # ── 7. Subir screenshots de debug (siempre, aunque falle) ────
+      - name: Upload debug screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshots
+          path: /tmp/debug_*.png
+          if-no-files-found: ignore

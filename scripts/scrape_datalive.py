@@ -108,30 +108,71 @@ def dl_to_dashboard(dl_name: str, mapping: dict) -> str | None:
     return None
 
 # ── Playwright: Login ──────────────────────────────────────────────
-async def login(page):
-    print("🔐 Iniciando sesión Datalive...")
-    await page.goto(f"{BASE_URL}?action=0", wait_until="networkidle", timeout=30000)
-    await page.fill('#usu', DL_USER)
-    await page.fill('input[type="password"]', DL_PASS)
+async def screenshot(page, name):
+    """Guarda screenshot para debug (solo en GitHub Actions)."""
+    try:
+        path = f"/tmp/debug_{name}.png"
+        await page.screenshot(path=path, full_page=False)
+        print(f"  📸 Screenshot: {path}")
+    except Exception as e:
+        print(f"  📸 Screenshot falló: {e}")
 
-    # Intentar varios selectores para el botón de submit
+
+async def login(page):
+    print("🔐 Cargando página de login Datalive...")
+    await page.goto(f"{BASE_URL}?action=0", wait_until="domcontentloaded", timeout=45000)
+
+    # Esperar que el campo usuario esté visible (puede estar en un modal)
+    print("  ↳ Esperando campo #usu...")
+    try:
+        await page.wait_for_selector('#usu', state='visible', timeout=15000)
+        print("  ↳ Campo #usu encontrado")
+    except Exception as e:
+        print(f"  ↳ #usu no encontrado: {e}")
+        # Intentar con selector genérico
+        await page.wait_for_selector('input[type="text"]', state='visible', timeout=10000)
+
+    await screenshot(page, '01_login_page')
+
+    # Llenar campos
+    await page.fill('#usu', DL_USER)
+    await page.wait_for_timeout(500)
+    await page.fill('input[type="password"]', DL_PASS)
+    await page.wait_for_timeout(500)
+    print("  ↳ Credenciales ingresadas")
+
+    # Intentar submit con múltiples estrategias
     submitted = False
     for sel in ['.btnLoginModal', 'button[type="submit"]', 'input[type="submit"]',
-                'button:has-text("Ingresar")', 'button:has-text("Entrar")', 'button:has-text("Acceder")']:
+                'button:has-text("Ingresar")', 'button:has-text("Entrar")',
+                'button:has-text("Acceder")', 'button:has-text("Login")']:
         try:
             btn = await page.query_selector(sel)
-            if btn:
-                await btn.click()
+            if btn and await btn.is_visible():
+                await btn.click(force=True)
                 submitted = True
+                print(f"  ↳ Botón clickeado: {sel}")
                 break
         except Exception:
             pass
 
     if not submitted:
-        # Último recurso: Enter en el campo contraseña
+        print("  ↳ Botón no encontrado, usando Enter...")
         await page.press('input[type="password"]', 'Enter')
 
-    await page.wait_for_load_state("networkidle", timeout=20000)
+    # Esperar a que cargue el dashboard (cambio de URL o elemento)
+    try:
+        await page.wait_for_load_state("networkidle", timeout=20000)
+    except Exception:
+        await page.wait_for_timeout(3000)
+
+    await screenshot(page, '02_after_login')
+
+    # Verificar login exitoso
+    current_url = page.url
+    page_title  = await page.title()
+    print(f"  ↳ Post-login URL: {current_url}")
+    print(f"  ↳ Post-login title: {page_title}")
     print("✅ Login completado")
 
 # ── Playwright: Fetch ventas detalladas ───────────────────────────
@@ -160,24 +201,30 @@ async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str) -> str | Non
     page.on("response", on_response)
 
     # Setear fechas
+    await screenshot(page, '03_report_page')
+
     for attempt in range(3):
         try:
+            await page.wait_for_selector('#FechaDesde', state='visible', timeout=10000)
             await page.fill('#FechaDesde', fecha_desde)
             await page.fill('#FechaHasta', fecha_hasta)
+            print(f"  ↳ Fechas seteadas: {fecha_desde} → {fecha_hasta}")
             break
         except Exception as e:
             print(f"  ↳ Reintento fecha ({attempt+1}): {e}")
-            await page.wait_for_timeout(1000)
+            await page.wait_for_timeout(2000)
 
     # Disparar el reporte
     try:
         await page.evaluate("actualizar_reporte()")
         print("  ↳ actualizar_reporte() ejecutado")
-    except Exception:
+    except Exception as e1:
+        print(f"  ↳ actualizar_reporte() falló: {e1}")
         try:
-            await page.click('button:has-text("Ver reporte")')
-        except Exception:
-            await page.click('button:has-text("Cargando")')
+            await page.click('button:has-text("Ver reporte")', timeout=5000)
+            print("  ↳ Botón 'Ver reporte' clickeado")
+        except Exception as e2:
+            print(f"  ↳ Botón falló también: {e2}")
 
     # Esperar hasta 15s por respuesta AJAX
     for _ in range(30):
