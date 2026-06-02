@@ -1,0 +1,78 @@
+name: 📊 Actualización Diaria Dashboard
+
+on:
+  schedule:
+    # 02:00 UTC = 23:00 ART (UTC-3) — Lunes a Sábado
+    - cron: '0 2 * * 1-6'
+  workflow_dispatch:   # permite correrlo manualmente desde la web de GitHub
+
+permissions:
+  contents: write    # para poder hacer push del HTML actualizado
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # ── 2. Python + dependencias ─────────────────────────────────
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias Python
+        run: |
+          pip install playwright beautifulsoup4 lxml
+          playwright install chromium --with-deps
+
+      # ── 3. Scraping Datalive ─────────────────────────────────────
+      - name: Scraping Datalive → actualizar dashboard
+        env:
+          DATALIVE_USER: ${{ secrets.DATALIVE_USER }}
+          DATALIVE_PASS: ${{ secrets.DATALIVE_PASS }}
+        run: python scripts/scrape_datalive.py
+
+      # ── 4. Encriptar con staticrypt ──────────────────────────────
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Encriptar dashboard (staticrypt)
+        env:
+          DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
+        run: |
+          npx staticrypt@3 dashboard_central_recoleta4.html \
+            --password "$DASHBOARD_PASSWORD" \
+            --output docs/index.html \
+            --short \
+            --template-title "Central Recoleta 4 — Dashboard"
+
+      # ── 5. Commit y push ─────────────────────────────────────────
+      - name: Guardar cambios en el repo
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dashboard_central_recoleta4.html docs/index.html
+          git diff --staged --quiet || git commit -m "📊 Datos $(TZ='America/Argentina/Buenos_Aires' date +'%d/%m/%Y %H:%M ART')"
+          git push
+
+      # ── 6. Deploy a GitHub Pages ─────────────────────────────────
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

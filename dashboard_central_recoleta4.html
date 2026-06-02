@@ -1,0 +1,3017 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard · Central Recoleta 4</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --card: #ffffff;
+      --header: #1c1c2e;
+      --accent: #e8470a;
+      --accent2: #f5a623;
+      --text: #1a1a2e;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --positive: #10b981;
+      --negative: #ef4444;
+      --gap: 16px;
+      --radius: 10px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); }
+
+    /* ── HEADER ── */
+    .header {
+      background:var(--header); color:#fff;
+      padding:18px 28px; display:flex; justify-content:space-between; align-items:center;
+      flex-wrap:wrap; gap:12px;
+    }
+    .header-left h1 { font-size:20px; font-weight:700; letter-spacing:-.3px; }
+    .header-left p  { font-size:12px; color:rgba(255,255,255,.55); margin-top:2px; }
+    .header-badge {
+      background:var(--accent); color:#fff;
+      padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600;
+    }
+
+    /* ── TABS ── */
+    .tabs { display:flex; gap:4px; background:var(--card); border-bottom:1px solid var(--border); padding:0 24px; }
+    .tab {
+      padding:12px 18px; font-size:13px; font-weight:500; color:var(--muted);
+      cursor:pointer; border-bottom:3px solid transparent; transition:.2s;
+      touch-action:manipulation; user-select:none;
+    }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+
+    /* ── MAIN ── */
+    .main { max-width:1440px; margin:0 auto; padding:var(--gap); }
+    .section { display:none; }
+    .section.active { display:block; }
+
+    /* ── KPI ROW ── */
+    .kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:var(--gap); margin-bottom:var(--gap); }
+    .kpi-card {
+      background:var(--card); border-radius:var(--radius);
+      padding:18px 20px; box-shadow:0 1px 4px rgba(0,0,0,.07);
+      border-left:4px solid var(--accent);
+    }
+    .kpi-card.green  { border-left-color:#10b981; }
+    .kpi-card.blue   { border-left-color:#3b82f6; }
+    .kpi-card.orange { border-left-color:var(--accent2); }
+    .kpi-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+    .kpi-value { font-size:26px; font-weight:800; color:var(--text); line-height:1; }
+    .kpi-sub   { font-size:12px; color:var(--muted); margin-top:5px; }
+
+    /* ── CHART ROW ── */
+    .chart-row { display:grid; grid-template-columns:1fr 1fr; gap:var(--gap); margin-bottom:var(--gap); }
+    .chart-row.wide { grid-template-columns:2fr 1fr; }
+    .chart-card {
+      background:var(--card); border-radius:var(--radius);
+      padding:20px 24px; box-shadow:0 1px 4px rgba(0,0,0,.07);
+    }
+    .chart-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px; }
+    .chart-sub   { font-size:11px; color:var(--muted); margin-bottom:14px; }
+    .chart-card canvas { max-height:280px; }
+    @media(max-width:900px){ .chart-row,.chart-row.wide { grid-template-columns:1fr; } }
+
+    /* ── TABLE ── */
+    .table-card {
+      background:var(--card); border-radius:var(--radius);
+      padding:20px 24px; box-shadow:0 1px 4px rgba(0,0,0,.07);
+      overflow-x:auto; margin-bottom:var(--gap);
+    }
+    .table-card table { width:100%; border-collapse:collapse; font-size:13px; }
+    .table-card th {
+      text-align:left; padding:9px 12px;
+      border-bottom:2px solid var(--border);
+      color:var(--muted); font-size:11px; font-weight:600;
+      text-transform:uppercase; letter-spacing:.4px; white-space:nowrap;
+    }
+    .table-card td { padding:10px 12px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+    .table-card tr:hover td { background:#fafafa; }
+    .table-card tr:last-child td { border-bottom:none; }
+    .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+    .tag.alta  { background:#d1fae5; color:#065f46; }
+    .tag.media { background:#fef3c7; color:#92400e; }
+    .tag.baja  { background:#fee2e2; color:#991b1b; }
+    .bar-mini {
+      display:flex; align-items:center; gap:6px;
+    }
+    .bar-fill {
+      height:8px; border-radius:4px; background:var(--accent); min-width:4px;
+    }
+
+    /* ── RENTABILIDAD ── */
+    .rent-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+    .rent-note { font-size:12px; color:var(--muted); background:#fffbeb; border:1px solid #fde68a; padding:8px 14px; border-radius:6px; }
+    .input-price {
+      width:90px; padding:5px 8px; border:1px solid var(--border);
+      border-radius:5px; font-size:13px; text-align:right;
+      transition: border-color .2s;
+    }
+    .input-price:focus { outline:none; border-color:var(--accent); }
+    .margin-bar { display:flex; align-items:center; gap:6px; min-width:120px; }
+    .margin-fill { height:10px; border-radius:5px; transition:width .3s; }
+    .margin-val  { font-size:12px; font-weight:700; min-width:36px; }
+
+    /* ── INSIGHTS ── */
+    .insights-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:var(--gap); margin-bottom:var(--gap); }
+    .insight-card {
+      background:var(--card); border-radius:var(--radius);
+      padding:18px 20px; box-shadow:0 1px 4px rgba(0,0,0,.07);
+    }
+    .insight-icon { font-size:24px; margin-bottom:8px; }
+    .insight-title { font-size:14px; font-weight:700; margin-bottom:6px; }
+    .insight-body  { font-size:13px; color:var(--muted); line-height:1.6; }
+    .insight-body strong { color:var(--text); }
+
+    /* ── PROMO ── */
+    .promo-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:var(--gap); }
+    .promo-card {
+      border-radius:var(--radius); padding:18px 20px;
+      border:2px dashed var(--border);
+    }
+    .promo-tag  { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--accent); margin-bottom:6px; }
+    .promo-name { font-size:15px; font-weight:700; margin-bottom:6px; }
+    .promo-desc { font-size:13px; color:var(--muted); line-height:1.5; }
+    .promo-badge{ display:inline-block; background:var(--accent); color:#fff; padding:3px 10px; border-radius:10px; font-size:11px; font-weight:700; margin-top:8px; }
+
+    .section-title { font-size:14px; font-weight:700; margin-bottom:12px; color:var(--text); }
+
+    /* ── MES SELECTOR ── */
+    .mes-selector { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+    .mes-btn {
+      padding:6px 16px; border:2px solid var(--border); border-radius:20px;
+      background:var(--card); color:var(--muted); cursor:pointer;
+      font-size:12px; font-weight:600; transition:.2s;
+    }
+    .mes-btn.active { border-color:var(--accent); color:var(--accent); background:#fff5f2; }
+    .mes-btn:hover:not(.active) { border-color:var(--accent2); color:var(--accent2); }
+
+    /* ── RESPONSIVE ── */
+
+    /* Tablet */
+    @media(max-width:768px){
+      .main { padding:10px; }
+      .kpi-row { gap:10px; margin-bottom:10px; }
+      .chart-row { gap:10px; margin-bottom:10px; }
+      .chart-card { padding:14px 16px; }
+      .table-card { padding:14px 16px; }
+    }
+
+    /* Mobile */
+    @media(max-width:600px){
+      /* Header */
+      .header { padding:12px 16px; gap:8px; }
+      .header-left h1 { font-size:15px; }
+      .header-left p  { font-size:10px; }
+      .header-badge   { font-size:10px; padding:3px 9px; }
+
+      /* Tabs — scroll horizontal, texto compacto */
+      .tabs {
+        padding:0 8px;
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+        scrollbar-width:none;
+        gap:0;
+      }
+      .tabs::-webkit-scrollbar { display:none; }
+      .tab { padding:10px 12px; font-size:12px; white-space:nowrap; flex-shrink:0; }
+
+      /* Main */
+      .main { padding:8px; }
+
+      /* KPI — 2 columnas compactas */
+      .kpi-row {
+        grid-template-columns:repeat(2,1fr);
+        gap:8px;
+        margin-bottom:10px;
+      }
+      .kpi-card      { padding:12px 14px; }
+      .kpi-label     { font-size:10px; }
+      .kpi-value     { font-size:20px; }
+      .kpi-sub       { font-size:11px; }
+
+      /* Charts */
+      .chart-card          { padding:12px 14px; }
+      .chart-title         { font-size:12px; }
+      .chart-sub           { font-size:10px; margin-bottom:10px; }
+      .chart-card canvas   { max-height:220px; }
+
+      /* Section title */
+      .section-title { font-size:13px; }
+
+      /* Table general — scroll horizontal */
+      .table-card          { padding:12px 14px; }
+      .table-card table    { font-size:12px; }
+      .table-card th, .table-card td { padding:7px 8px; }
+
+      .pe-input-group { display:flex; flex-direction:column; gap:4px; }
+      .pe-label { font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+
+      /* Rentabilidad: tabla más compacta + inputs más chicos */
+      .input-price { width:72px; font-size:12px; padding:4px 6px; }
+      .margin-bar  { min-width:80px; }
+      .margin-fill { height:8px; }
+      .margin-val  { font-size:11px; }
+
+      /* Insights */
+      .insights-grid { grid-template-columns:1fr; gap:8px; }
+      .insight-card  { padding:14px 16px; }
+      .insight-icon  { font-size:20px; }
+      .insight-title { font-size:13px; }
+      .insight-body  { font-size:12px; }
+
+      /* Promos */
+      .promo-grid { grid-template-columns:1fr; gap:8px; }
+      .promo-card { padding:14px 16px; }
+      .promo-name { font-size:14px; }
+      .promo-desc { font-size:12px; }
+
+      /* Rent note */
+      .rent-note { font-size:11px; padding:8px 10px; }
+    }
+
+    /* Landscape mobile pequeño */
+    @media(max-width:480px){
+      .kpi-value { font-size:18px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>🍕 Central Recoleta 4 · Dashboard de Rentabilidad</h1>
+    <p>Datos: Datalive (precios y ventas reales) + Gastos Sep 2025–Mar 2026 · Actualizado 02/06/2026</p>
+  </div>
+  <span class="header-badge">Análisis Operativo</span>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('ventas',this)">📊 Ventas</div>
+  <div class="tab" onclick="showTab('ingresos',this)">💵 Ingresos</div>
+  <div class="tab" onclick="showTab('empanadas',this)">🥟 Empanadas</div>
+  <div class="tab" onclick="showTab('pizzas',this)">🍕 Pizzas</div>
+  <div class="tab" onclick="showTab('medialunas',this)">🥐 Medialunas</div>
+  <div class="tab" onclick="showTab('otros',this)">🍽 Otros</div>
+  <div class="tab" onclick="showTab('bebidas',this)">🥤 Bebidas</div>
+  <div class="tab" onclick="showTab('gastos',this)">💰 Costos</div>
+  <div class="tab" onclick="showTab('rentabilidad',this)">📈 Rentabilidad</div>
+  <div class="tab" onclick="showTab('campanas',this)">🎯 Campañas</div>
+</div>
+
+<div class="main">
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB 1: COSTOS -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section" id="tab-gastos">
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Gasto Total (7 meses)</div>
+        <div class="kpi-value" id="kpi-total-gasto">$14,0M</div>
+        <div class="kpi-sub">Sep 2025 – Mar 2026</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Promedio Mensual</div>
+        <div class="kpi-value">$2,0M</div>
+        <div class="kpi-sub">Sin contar Sept (mes parcial)</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Costo Laboral</div>
+        <div class="kpi-value">73,1%</div>
+        <div class="kpi-sub">$10,3M en sueldos y turnos</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Costo Ingredientes</div>
+        <div class="kpi-value">$1,25M</div>
+        <div class="kpi-sub">8,9% del gasto total</div>
+      </div>
+    </div>
+
+    <!-- Charts row 1 -->
+    <div class="chart-row wide">
+      <div class="chart-card">
+        <div class="chart-title">Gasto mensual (Sep 2025 – Mar 2026)</div>
+        <div class="chart-sub">Pesos argentinos</div>
+        <canvas id="chart-gastos-mes"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Distribución de Gastos</div>
+        <div class="chart-sub">Por categoría</div>
+        <canvas id="chart-gastos-dist"></canvas>
+      </div>
+    </div>
+
+    <!-- Proveedores de alimentos -->
+    <div class="table-card">
+      <div class="rent-header">
+        <div>
+          <div class="section-title">Proveedores de Alimentos</div>
+          <div style="font-size:12px;color:var(--muted)">Sep 2025 – Mar 2026 · $1.252.750 total</div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Proveedor</th>
+            <th>Monto</th>
+            <th>Registros</th>
+            <th>% del Total Alimentos</th>
+            <th>Participación</th>
+          </tr>
+        </thead>
+        <tbody id="proveedores-tbody"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /tab-gastos -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB 2: VENTAS -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section active" id="tab-ventas">
+
+    <!-- Selector de mes -->
+    <div class="mes-selector">
+      <button class="mes-btn active" onclick="setMes('abril',this)">📅 Abril 2026 (completo)</button>
+      <button class="mes-btn" onclick="setMes('mayo',this)">📅 Mayo 2026 <span style="font-size:10px;opacity:.7">25 días</span></button>
+      <button class="mes-btn" onclick="setMes('junio',this)">📅 Junio 2026 <span style="font-size:10px;opacity:.7">1 día</span></button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi-card green">
+        <div class="kpi-label" id="kpi-v-label">Ventas · Abril 2026</div>
+        <div class="kpi-value" id="kpi-v-total">$29,4M</div>
+        <div class="kpi-sub" id="kpi-v-dias">26 días hábiles · datos reales Datalive</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label" id="kpi-v-avg-label">Promedio Diario</div>
+        <div class="kpi-value" id="kpi-v-avg">$1,13M</div>
+        <div class="kpi-sub" id="kpi-v-avg-sub">245 cmd/día promedio</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Mejor Día</div>
+        <div class="kpi-value" id="kpi-v-mejor">$1,48M</div>
+        <div class="kpi-sub" id="kpi-v-mejor-sub">Jueves 30/04</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Producto #1 Volumen</div>
+        <div class="kpi-value" id="kpi-v-prod1">Medialunas</div>
+        <div class="kpi-sub" id="kpi-v-prod1-sub">4.926 unid. · 164/día</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-title">Ventas Diarias · Abril 2026</div>
+        <div class="chart-sub">Ingresos reales por día (ARS) · Fuente: Datalive</div>
+        <canvas id="chart-ventas-dia"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Patrón por Día de Semana</div>
+        <div class="chart-sub">Promedio de ventas ARS según día · Abril 2026</div>
+        <canvas id="chart-ventas-dow"></canvas>
+      </div>
+    </div>
+
+    <!-- Top productos -->
+    <div class="chart-row">
+      <div class="chart-card" style="grid-column:1/-1">
+        <div class="chart-title" id="title-top-productos">Top Productos por Volumen · Abril 2026</div>
+        <div class="chart-sub">Fuente: Datalive — Reporte detallado de ventas (datos reales)</div>
+        <canvas id="chart-top-productos" style="max-height:420px"></canvas>
+      </div>
+    </div>
+
+    <!-- Revenue por producto -->
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-title" id="title-revenue-producto">Revenue Estimado por Producto · Abril 2026</div>
+        <div class="chart-sub">Unidades vendidas × precio de venta real (ARS)</div>
+        <canvas id="chart-revenue-producto" style="max-height:420px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title" id="title-revenue-categoria">Revenue por Categoría · Abril 2026</div>
+        <div class="chart-sub">Distribución de ingresos estimados</div>
+        <canvas id="chart-revenue-categoria"></canvas>
+      </div>
+    </div>
+
+  </div><!-- /tab-ventas -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB: INGRESOS -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section" id="tab-ingresos">
+
+    <div class="kpi-row" id="ingresos-kpis">
+      <div class="kpi-card green">
+        <div class="kpi-label">Último Registro · Comandas</div>
+        <div class="kpi-value" id="ing-kpi-cmd">—</div>
+        <div class="kpi-sub" id="ing-kpi-cmd-sub">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Último Registro · Total</div>
+        <div class="kpi-value" id="ing-kpi-total">—</div>
+        <div class="kpi-sub" id="ing-kpi-total-sub">—</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Efectivo</div>
+        <div class="kpi-value" id="ing-kpi-efec">—</div>
+        <div class="kpi-sub" id="ing-kpi-efec-pct">—</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Digital</div>
+        <div class="kpi-value" id="ing-kpi-dig">—</div>
+        <div class="kpi-sub" id="ing-kpi-dig-pct">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Local</div>
+        <div class="kpi-value" id="ing-kpi-local">—</div>
+        <div class="kpi-sub" id="ing-kpi-local-pct">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Apps (Rappi + PedidosYa)</div>
+        <div class="kpi-value" id="ing-kpi-apps">—</div>
+        <div class="kpi-sub" id="ing-kpi-apps-pct">—</div>
+      </div>
+    </div>
+
+    <div class="table-card" style="overflow-x:auto">
+      <div class="section-title">Detalle Mensual · Ventas e Ingresos</div>
+      <table style="min-width:900px">
+        <thead>
+          <tr>
+            <th style="min-width:160px">Métrica</th>
+            <th>Sep '25</th><th>Oct '25</th><th>Nov '25</th><th>Dic '25</th>
+            <th>Ene '26</th><th>Feb '26</th><th>Mar '26</th><th>Abr '26</th>
+            <th style="background:#fffbf0">May '26</th>
+          </tr>
+        </thead>
+        <tbody id="ingresos-tbody"></tbody>
+      </table>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px">
+        Ventas Totales: unidades × precio de carta · Canal y medio de pago: Historial de Caja de Datalive (disponible solo donde se ejecutó el scraper)
+      </p>
+    </div>
+
+  </div><!-- /tab-ingresos -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB 3: RENTABILIDAD -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section" id="tab-rentabilidad">
+
+    <div class="mes-selector" style="align-items:center;gap:12px">
+      <span style="font-size:13px;font-weight:600;color:var(--text)">📅 Mes:</span>
+      <select id="rent-mes-select" onchange="setMesRent(this.value)" style="font-size:13px;padding:6px 12px;border-radius:8px;border:1.5px solid #d1d5db;background:#fff;cursor:pointer;color:var(--text)">
+        <option value="2025-09">Sep 2025 ⚠ mes parcial</option>
+        <option value="2025-10">Oct 2025</option>
+        <option value="2025-11">Nov 2025</option>
+        <option value="2025-12">Dic 2025</option>
+        <option value="2026-01">Ene 2026</option>
+        <option value="2026-02">Feb 2026</option>
+        <option value="2026-03">Mar 2026</option>
+        <option value="2026-04" selected>Abr 2026</option>
+        <option value="2026-05">May 2026 ⚠ mes parcial</option>
+      </select>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-card green">
+        <div class="kpi-label">Ingreso Est. Mensual</div>
+        <div class="kpi-value" id="kpi-ingreso-mensual">—</div>
+        <div class="kpi-sub">Basado en precios ingresados</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label" id="kpi-ventas-reales-label">Ventas Reales · Abril 2026</div>
+        <div class="kpi-value" id="kpi-ventas-reales-val">$29,4M</div>
+        <div class="kpi-sub" id="kpi-ventas-reales-sub">Datos reales Datalive · 6.363 comandas</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Margen Promedio</div>
+        <div class="kpi-value" id="kpi-margen-prom">—</div>
+        <div class="kpi-sub">% sobre precio de venta</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Producto con Mejor Margen</div>
+        <div class="kpi-value" id="kpi-mejor-margen">—</div>
+        <div class="kpi-sub" id="kpi-mejor-margen-val">Completar precios</div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="rent-header">
+        <div>
+          <div class="section-title">Calculadora de Rentabilidad por Producto</div>
+          <div style="font-size:12px;color:var(--muted)">Ingresá el precio de venta y el costo unitario para calcular el margen</div>
+        </div>
+      </div>
+      <div class="rent-note" style="margin-bottom:14px">
+        💡 <strong>Precios reales de Datalive · Abril 2026.</strong> Los <strong>Costos</strong> están completados con datos reales de remitos de fábrica (empanadas $500, medialunas $260, pizzas $3.100–$4.600). Podés editarlos manualmente.
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Unid/día avg</th>
+            <th>Precio Venta ($)</th>
+            <th>Costo Unit. ($)</th>
+            <th>Margen %</th>
+            <th id="th-ingreso-mes">Ingreso Mensual (Abr)</th>
+            <th>Score Rentabilidad</th>
+            <th>Prioridad</th>
+          </tr>
+        </thead>
+        <tbody id="rent-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-title" id="chart-rent-ingreso-title">Ingreso Mensual Real por Producto (Abril 2026)</div>
+        <div class="chart-sub">Actualiza al ingresar precios</div>
+        <div id="wrap-rent-ingreso" style="position:relative;height:280px">
+          <canvas id="chart-rent-ingreso"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Score de Rentabilidad</div>
+        <div class="chart-sub">Margen × Volumen (mayor = mejor)</div>
+        <div id="wrap-rent-score" style="position:relative;height:280px">
+          <canvas id="chart-rent-score"></canvas>
+        </div>
+      </div>
+    </div>
+    <!-- ── PUNTO DE EQUILIBRIO ──────────────────────────── -->
+    <div class="table-card" style="margin-top:20px">
+      <div class="section-title">Punto de Equilibrio Mensual</div>
+      <div class="rent-note" style="margin-bottom:16px">
+        📊 <strong>Costos variables:</strong> remitos fábrica + gastos operativos (datos reales Datalive · Abr 2026).
+        Ingresá los costos fijos para calcular el punto de equilibrio.
+      </div>
+
+      <div style="display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;align-items:flex-end">
+        <div class="pe-input-group">
+          <label class="pe-label">Alquiler mensual ($)</label>
+          <input type="number" id="pe-alquiler" value="2000000" step="100000" min="0" oninput="recalcPE()" class="input-price" style="width:160px">
+        </div>
+        <div class="pe-input-group">
+          <label class="pe-label">Sueldos mensuales ($)</label>
+          <input type="number" id="pe-sueldos" value="8000000" step="100000" min="0" oninput="recalcPE()" class="input-price" style="width:160px">
+        </div>
+        <div class="pe-input-group">
+          <label class="pe-label">Otros costos fijos ($)</label>
+          <input type="number" id="pe-otros" value="500000" step="100000" min="0" oninput="recalcPE()" class="input-price" style="width:160px">
+        </div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi-card orange">
+          <div class="kpi-label">Costos Fijos Totales</div>
+          <div class="kpi-value" id="pe-kpi-fijos">—</div>
+          <div class="kpi-sub">Alquiler + Sueldos + Otros</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Costos Variables · Abr 2026</div>
+          <div class="kpi-value">$14,6M</div>
+          <div class="kpi-sub">Fábrica $14,2M + Operativos $0,4M</div>
+        </div>
+        <div class="kpi-card blue">
+          <div class="kpi-label">Punto de Equilibrio</div>
+          <div class="kpi-value" id="pe-kpi-pe">—</div>
+          <div class="kpi-sub" id="pe-kpi-pe-sub">Ingresos mensuales necesarios</div>
+        </div>
+        <div class="kpi-card green" id="pe-ms-card">
+          <div class="kpi-label">Margen de Seguridad</div>
+          <div class="kpi-value" id="pe-kpi-ms">—</div>
+          <div class="kpi-sub" id="pe-kpi-ms-sub">vs. $29,4M reales Abr 2026</div>
+        </div>
+      </div>
+
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">Punto de Equilibrio</div>
+          <div class="chart-sub">Ingresos vs Costos Totales · Referencia Abril 2026</div>
+          <canvas id="chart-pe"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Costo de Mercadería por Mes</div>
+          <div class="chart-sub">Remitos fábrica + gastos operativos · Sep 2025 – May 2026</div>
+          <canvas id="chart-costos-fab"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-rentabilidad -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB 4: CAMPAÑAS -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section" id="tab-campanas">
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Pico Semanal</div>
+        <div class="kpi-value">Jue–Vie</div>
+        <div class="kpi-sub">+20% sobre promedio</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Valle a Activar</div>
+        <div class="kpi-value">Sábado</div>
+        <div class="kpi-sub">–25% vs. viernes · $909K promedio</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Pizzas: Oportunidad Dormida</div>
+        <div class="kpi-value">158 und/mes</div>
+        <div class="kpi-sub">0,8% del volumen total · Abr 2026</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Producto Gancho</div>
+        <div class="kpi-value">Medialunas</div>
+        <div class="kpi-sub">5.231 und · #1 en volumen Abr 2026</div>
+      </div>
+    </div>
+
+    <!-- Insights -->
+    <div class="section-title">Insights Estratégicos</div>
+    <div class="insights-grid" style="margin-bottom:var(--gap)">
+      <div class="insight-card">
+        <div class="insight-icon">📉</div>
+        <div class="insight-title">El sábado es el día más flojo</div>
+        <div class="insight-body">
+          Abr 2026: sábado promedia <strong>$909.865</strong> vs. $1.218.715 del viernes (–25%).
+          Es el único día claramente por debajo del promedio semanal. Un combo específico para el sábado puede levantar ese valle sin afectar el resto de la semana.
+        </div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-icon">🍕</div>
+        <div class="insight-title">Las pizzas están prácticamente sin explotar</div>
+        <div class="insight-body">
+          158 pizzas en abril 2026 vs. 20.724 empanadas: las pizzas son el <strong>0,8% del volumen</strong>.
+          No es que no se venden — es que nadie las está pidiendo activamente. Un combo empanadas + pizza puede generar el primer hábito.
+        </div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-icon">🥐</div>
+        <div class="insight-title">Medialunas: el mejor gancho de ticket</div>
+        <div class="insight-body">
+          <strong>5.231 unidades en abril</strong>, ya superan a Jamón y Queso en volumen. Tienen demanda probada y son visualmente atractivas para redes. Agregarles una bebida o usarlas como ancla de un combo de merienda puede subir el ticket medio sin esfuerzo adicional.
+        </div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-icon">🌱</div>
+        <div class="insight-title">Sabores de bajo volumen: hay espacio para crecer</div>
+        <div class="insight-body">
+          Choclo y Calabaza (139 und), Pollo al Curry (120), Carne a la Criolla (115) y Puerro y Hongos (386) suman el <strong>3,7% del total</strong> de abril pero casi no aparecen en la carta digital.
+          Incluirlos en una docena mixta los expone sin necesitar una promo dedicada.
+        </div>
+      </div>
+    </div>
+
+    <!-- Campañas sugeridas -->
+    <div class="section-title">Promos Sugeridas</div>
+    <div class="promo-grid">
+      <div class="promo-card">
+        <div class="promo-tag">Promo 1 · Anti-valle</div>
+        <div class="promo-name">🎉 Sábado de Empanadas</div>
+        <div class="promo-desc">
+          Combo 6 empanadas a elección + gaseosa personal con 15% de descuento, solo los sábados de 12 a 18 hs por delivery.
+          El sábado ya tiene la demanda más baja de la semana — este tipo de promo activa pedidos sin canibalizar los días fuertes.
+        </div>
+        <span class="promo-badge">Objetivo: +30% ventas sábado</span>
+      </div>
+      <div class="promo-card">
+        <div class="promo-tag">Promo 2 · Activar pizzas</div>
+        <div class="promo-name">🍕 Combo Pizza Central</div>
+        <div class="promo-desc">
+          Pizza Muzzarella + 4 empanadas a elección a precio especial. Las pizzas venden solo 158 und/mes — están en la carta pero no en la cabeza del cliente.
+          Un combo con empanadas (producto estrella) les da visibilidad sin descuento agresivo.
+        </div>
+        <span class="promo-badge">Objetivo: duplicar ventas de pizzas</span>
+      </div>
+      <div class="promo-card">
+        <div class="promo-tag">Promo 3 · Ticket promedio</div>
+        <div class="promo-name">🥐 Merienda Central</div>
+        <div class="promo-desc">
+          6 medialunas + bebida (gaseosa o agua) a precio fijo, lunes a viernes 15–18 hs.
+          Las medialunas son el #1 en volumen y tienen una franja horaria clara. Agregar una bebida sube el ticket sin resistencia del cliente porque ya viene a buscar medialunas.
+        </div>
+        <span class="promo-badge">Objetivo: +$300 por ticket tarde</span>
+      </div>
+      <div class="promo-card">
+        <div class="promo-tag">Promo 4 · Descubrimiento</div>
+        <div class="promo-name">🎲 Docena Mixta</div>
+        <div class="promo-desc">
+          12 empanadas variadas (incluye al menos 2 sabores "sorpresa" del chef — Choclo, Vegana, Puerro) con 10% off sobre el precio de lista.
+          No perdés margen en los top sellers y los sabores de bajo volumen ganan exposición. Ideal para grupos o cenas.
+        </div>
+        <span class="promo-badge">Objetivo: rotar sabores y subir ticket</span>
+      </div>
+      <div class="promo-card">
+        <div class="promo-tag">Promo 5 · Grupo y oficinas</div>
+        <div class="promo-name">🏢 Central para tu Equipo</div>
+        <div class="promo-desc">
+          24 empanadas + 6 gaseosas + focaccia a precio pack, con pedido anticipado de 2 hs. Enfocado en delivery L–J a oficinas de Recoleta/Palermo (almuerzo de equipo, reunión, cumpleaños).
+          Un pedido de este tipo equivale a 3–4 pedidos individuales sin costo extra de logística.
+        </div>
+        <span class="promo-badge">Objetivo: capturar almuerzo corporativo</span>
+      </div>
+      <div class="promo-card">
+        <div class="promo-tag">Promo 6 · Fidelización</div>
+        <div class="promo-name">🌙 Noche de Burritos</div>
+        <div class="promo-desc">
+          Viernes a la noche: Burrito de Ternera + gaseosa con descuento del 20%, solo delivery a partir de las 19 hs.
+          Los burritos venden 63 und/mes — poco para un producto que tiene diferenciación real. El viernes a la noche tiene demanda, buen momento para instalar un nuevo hábito sin promo masiva.
+        </div>
+        <span class="promo-badge">Objetivo: instalar burritos como opción nocturna</span>
+      </div>
+    </div>
+  </div><!-- /tab-campanas -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB 5: PIZZAS -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section" id="tab-pizzas">
+
+    <div class="kpi-row">
+      <div class="kpi-card green">
+        <div class="kpi-label">Total Histórico</div>
+        <div class="kpi-value">1.704</div>
+        <div class="kpi-sub">Sep 2025 – May 2026 · 9 meses</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Sabor #1</div>
+        <div class="kpi-value">Muzzarella</div>
+        <div class="kpi-sub">1.042 unid. · 61% del total</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Mejor Mes</div>
+        <div class="kpi-value">Oct 2025</div>
+        <div class="kpi-sub">256 pizzas en el mes</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Sabores Activos</div>
+        <div class="kpi-value">18</div>
+        <div class="kpi-sub">De los cuales 12 con ventas regulares</div>
+      </div>
+    </div>
+
+    <div class="chart-row wide">
+      <div class="chart-card">
+        <div class="chart-title">Ranking Histórico de Sabores</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · unidades totales vendidas</div>
+        <canvas id="chart-pizza-ranking" style="max-height:360px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Participación por Sabor</div>
+        <div class="chart-sub">% del total de pizzas vendidas</div>
+        <canvas id="chart-pizza-torta"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card" style="grid-column:1/-1">
+        <div class="chart-title">Grandes vs. Megas — Totales mensuales</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · unidades por tipo de pizza</div>
+        <canvas id="chart-pizza-evolucion" style="max-height:300px"></canvas>
+      </div>
+    </div>
+
+    <!-- Tablas por semana — Grandes y Megas -->
+    <div class="chart-row" style="margin-bottom:var(--gap)">
+      <div class="table-card" style="margin-bottom:0">
+        <div class="rent-header">
+          <div>
+            <div class="section-title" id="title-pizza-grandes-semanas">🍕 Grandes por semana · Mayo 2026</div>
+            <div style="font-size:12px;color:var(--muted)">Pizzas Grandes 32cm · feriados marcados con *</div>
+          </div>
+        </div>
+        <table id="pizza-grandes-semanas-table">
+          <thead id="pizza-grandes-semanas-thead">
+            <tr>
+              <th>Día</th>
+              <th style="text-align:center">Sem 1</th>
+              <th style="text-align:center">Sem 2</th>
+              <th style="text-align:center">Sem 3</th>
+              <th style="text-align:center">Sem 4</th>
+              <th style="text-align:center">Promedio</th>
+              <th style="text-align:center">Variación</th>
+            </tr>
+          </thead>
+          <tbody id="pizza-grandes-semanas-tbody"></tbody>
+        </table>
+      </div>
+      <div class="table-card" style="margin-bottom:0">
+        <div class="rent-header">
+          <div>
+            <div class="section-title" id="title-pizza-megas-semanas">🍕 Megas por semana · Mayo 2026</div>
+            <div style="font-size:12px;color:var(--muted)">Pizzas Mega 40cm · feriados marcados con *</div>
+          </div>
+        </div>
+        <table id="pizza-megas-semanas-table">
+          <thead id="pizza-megas-semanas-thead">
+            <tr>
+              <th>Día</th>
+              <th style="text-align:center">Sem 1</th>
+              <th style="text-align:center">Sem 2</th>
+              <th style="text-align:center">Sem 3</th>
+              <th style="text-align:center">Sem 4</th>
+              <th style="text-align:center">Promedio</th>
+              <th style="text-align:center">Variación</th>
+            </tr>
+          </thead>
+          <tbody id="pizza-megas-semanas-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">Pizzas Grandes — Detalle por Sabor y Mes</div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Sabor</th><th>Total</th>
+            <th>Sep'25</th><th>Oct'25</th><th>Nov'25</th><th>Dic'25</th>
+            <th>Ene'26</th><th>Feb'26</th><th>Mar'26</th><th>Abr'26</th><th>May'26</th>
+            <th style="background:#fff8f3;color:var(--accent)">Avg/día May</th>
+            <th>Part.</th>
+          </tr>
+        </thead>
+        <tbody id="pizza-tbody-grandes"></tbody>
+      </table>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">Pizzas Mega — Detalle por Sabor y Mes</div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Sabor</th><th>Total</th>
+            <th>Sep'25</th><th>Oct'25</th><th>Nov'25</th><th>Dic'25</th>
+            <th>Ene'26</th><th>Feb'26</th><th>Mar'26</th><th>Abr'26</th><th>May'26</th>
+            <th style="background:#fff8f3;color:var(--accent)">Avg/día May</th>
+            <th>Part.</th>
+          </tr>
+        </thead>
+        <tbody id="pizza-tbody-megas"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /tab-pizzas -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB 6: EMPANADAS -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section" id="tab-empanadas">
+
+    <div class="kpi-row">
+      <div class="kpi-card green">
+        <div class="kpi-label">Total Histórico</div>
+        <div class="kpi-value">144.033</div>
+        <div class="kpi-sub">Sep 2025 – May 2026 · 16 sabores</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Sabor #1</div>
+        <div class="kpi-value">Jamón y Queso</div>
+        <div class="kpi-sub">29.907 unid. · 23% del total</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Mejor Mes</div>
+        <div class="kpi-value">Abr 2026</div>
+        <div class="kpi-sub">~20.700 empanadas · tendencia creciente</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Promedio Diario</div>
+        <div class="kpi-value" id="emp-kpi-avg-diario">—</div>
+        <div class="kpi-sub" id="emp-kpi-avg-diario-sub">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Mejor Día Histórico</div>
+        <div class="kpi-value" id="emp-kpi-best-hist">—</div>
+        <div class="kpi-sub" id="emp-kpi-best-hist-sub">Prom. diario del mejor mes</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Mejor Día · Últ. Semana</div>
+        <div class="kpi-value" id="emp-kpi-best-week">—</div>
+        <div class="kpi-sub" id="emp-kpi-best-week-sub">—</div>
+      </div>
+    </div>
+
+    <div class="chart-row wide">
+      <div class="chart-card">
+        <div class="chart-title">Ranking Histórico de Sabores</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · unidades totales vendidas</div>
+        <canvas id="chart-emp-ranking" style="max-height:400px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Participación por Sabor</div>
+        <div class="chart-sub">% del total de empanadas vendidas</div>
+        <canvas id="chart-emp-torta"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card" style="grid-column:1/-1">
+        <div class="chart-title">Evolución Mensual · Top 5 Sabores</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · Sep y May son meses parciales</div>
+        <canvas id="chart-emp-evolucion" style="max-height:300px"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card" style="grid-column:1/-1">
+        <div class="chart-title">Patrón por Día de Semana · Empanadas</div>
+        <div class="chart-sub" id="emp-dow-sub">Promedio de empanadas según día · Mar 2026–presente</div>
+        <div style="position:relative;height:200px">
+          <canvas id="chart-emp-dow"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparativa semana a semana — Mayo 2026 -->
+    <div class="table-card" style="margin-bottom:var(--gap)">
+      <div class="rent-header">
+        <div>
+          <div class="section-title" id="title-emp-semanas">Empanadas por semana · Mayo 2026</div>
+          <div style="font-size:12px;color:var(--muted)">Totales reales por día de semana · feriados marcados con *</div>
+        </div>
+      </div>
+      <table id="emp-semanas-table">
+        <thead id="emp-semanas-thead">
+          <tr>
+            <th>Día</th>
+            <th style="text-align:center">Sem 1</th>
+            <th style="text-align:center">Sem 2</th>
+            <th style="text-align:center">Sem 3</th>
+            <th style="text-align:center">Sem 4</th>
+            <th style="text-align:center">Promedio</th>
+            <th style="text-align:center">Variación</th>
+          </tr>
+        </thead>
+        <tbody id="emp-semanas-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">Detalle Histórico por Sabor y Mes</div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Sabor</th>
+            <th>Total</th>
+            <th>Sep'25</th><th>Oct'25</th><th>Nov'25</th><th>Dic'25</th>
+            <th>Ene'26</th><th>Feb'26</th><th>Mar'26</th><th>Abr'26</th><th>May'26</th>
+            <th style="background:#fff8f3;color:var(--accent)">Avg/día May</th>
+            <th>% Total</th>
+          </tr>
+        </thead>
+        <tbody id="emp-tbody"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /tab-empanadas -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB: MEDIALUNAS -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section" id="tab-medialunas">
+
+    <div class="kpi-row">
+      <div class="kpi-card green">
+        <div class="kpi-label">Total Histórico</div>
+        <div class="kpi-value">25.949</div>
+        <div class="kpi-sub">Sep 2025 – May 2026</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Abril 2026</div>
+        <div class="kpi-value">5.231</div>
+        <div class="kpi-sub">Segundo mejor mes</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Mayo 2026 · Real</div>
+        <div class="kpi-value">6.890</div>
+        <div class="kpi-sub">24 días · mes completo · nuevo récord</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Tendencia</div>
+        <div class="kpi-value">+49x</div>
+        <div class="kpi-sub">140 Sep'25 → 6.890 May'26</div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card" style="grid-column:1/-1">
+        <div class="chart-title">Evolución Mensual · Medialunas</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · totales reales por mes</div>
+        <canvas id="chart-med-evolucion" style="max-height:300px"></canvas>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">Detalle Mensual con Variación y Promedio Diario</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Métrica</th><th>Total</th>
+            <th>Sep'25</th><th>Oct'25</th><th>Nov'25</th><th>Dic'25</th>
+            <th>Ene'26</th><th>Feb'26</th><th>Mar'26</th><th>Abr'26</th><th>May'26</th>
+          </tr>
+        </thead>
+        <tbody id="med-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="table-card">
+      <div class="rent-header">
+        <div>
+          <div class="section-title" id="title-med-semanas">Medialunas por semana · mes en curso</div>
+          <div style="font-size:12px;color:var(--muted)">Totales reales por día de semana · feriados marcados con *</div>
+        </div>
+      </div>
+      <table id="med-semanas-table">
+        <thead id="med-semanas-thead">
+          <tr>
+            <th>Día</th>
+            <th style="text-align:center">Sem 1</th>
+            <th style="text-align:center">Sem 2</th>
+            <th style="text-align:center">Sem 3</th>
+            <th style="text-align:center">Sem 4</th>
+            <th style="text-align:center">Promedio</th>
+            <th style="text-align:center">Variación</th>
+          </tr>
+        </thead>
+        <tbody id="med-semanas-tbody"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /tab-medialunas -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB 7: OTROS COMESTIBLES -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section" id="tab-otros">
+
+    <div class="kpi-row">
+      <div class="kpi-card green">
+        <div class="kpi-label">Total Histórico</div>
+        <div class="kpi-value">1.933</div>
+        <div class="kpi-sub">Sep 2025 – May 2026 · 11 productos</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Producto Estrella</div>
+        <div class="kpi-value">Burrito Ternera</div>
+        <div class="kpi-sub">429 unid. · 22% del total</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Mejor Mes</div>
+        <div class="kpi-value">Mar 2026</div>
+        <div class="kpi-sub">311 unidades en el mes</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Mayo · Proyectado</div>
+        <div class="kpi-value">~152</div>
+        <div class="kpi-sub">88 reales en 13 días → ~152</div>
+      </div>
+    </div>
+
+    <div class="chart-row wide">
+      <div class="chart-card">
+        <div class="chart-title">Ranking de Productos</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · unidades totales (Medialunas en pestaña propia)</div>
+        <canvas id="chart-otros-ranking" style="max-height:360px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Mix por Producto</div>
+        <div class="chart-sub">Distribución de los 1.933 productos</div>
+        <canvas id="chart-otros-torta"></canvas>
+      </div>
+    </div>
+
+    <!-- Evolución por grupo: Burritos / Sandwiches / Individuales / Focaccia / Faina+Pancho -->
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-title">🌯 Burritos — Evolución Mensual</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · Sep y May son meses parciales</div>
+        <canvas id="chart-otros-burritos" style="max-height:300px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🥪 Sandwiches Grandes — Evolución Mensual</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · Sep y May son meses parciales</div>
+        <canvas id="chart-otros-sandwiches" style="max-height:300px"></canvas>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-title">🥙 Sandwiches Individuales — Evolución Mensual</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · Sep y May son meses parciales</div>
+        <canvas id="chart-otros-individuales" style="max-height:300px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🫓 Focaccia — Evolución Mensual</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · Sep y May son meses parciales</div>
+        <canvas id="chart-otros-focaccia" style="max-height:300px"></canvas>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card" style="grid-column:1/-1">
+        <div class="chart-title">🌭 Faina y Panchos — Evolución Mensual</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · Sep y May son meses parciales</div>
+        <canvas id="chart-otros-faina-pancho" style="max-height:260px"></canvas>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">Detalle Histórico por Producto y Mes</div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Producto</th><th>Total</th>
+            <th>Sep'25</th><th>Oct'25</th><th>Nov'25</th><th>Dic'25</th>
+            <th>Ene'26</th><th>Feb'26</th><th>Mar'26</th><th>Abr'26</th><th>May'26</th>
+            <th>% Total</th>
+          </tr>
+        </thead>
+        <tbody id="otros-tbody"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /tab-otros -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB 8: BEBIDAS -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="section" id="tab-bebidas">
+
+    <div class="kpi-row">
+      <div class="kpi-card green">
+        <div class="kpi-label">Total Histórico</div>
+        <div class="kpi-value">6.296</div>
+        <div class="kpi-sub">Sep 2025 – May 2026 · 15 SKUs</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Bebida #1</div>
+        <div class="kpi-value">Coca Cola 500ml</div>
+        <div class="kpi-sub">1.597 unid. · 25% del total</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Mejor Mes</div>
+        <div class="kpi-value">Mar 2026</div>
+        <div class="kpi-sub">~1.615 unidades en el mes</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">SKUs Activos</div>
+        <div class="kpi-value">15+</div>
+        <div class="kpi-sub">Colas, aguas, jugos y saborizadas</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Promedio Diario</div>
+        <div class="kpi-value" id="beb-avg-diario">—</div>
+        <div class="kpi-sub">Unidades/día · Abr 2026</div>
+      </div>
+    </div>
+
+    <div class="chart-row wide">
+      <div class="chart-card">
+        <div class="chart-title">Ranking de Bebidas</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · unidades totales vendidas</div>
+        <canvas id="chart-beb-ranking" style="max-height:420px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Participación por Bebida</div>
+        <div class="chart-sub">Top 5 + resto del catálogo</div>
+        <canvas id="chart-beb-torta"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card" style="grid-column:1/-1">
+        <div class="chart-title">Evolución Mensual · Top 5 Bebidas</div>
+        <div class="chart-sub">Sep 2025 – May 2026 · primeros meses sin datos por incorporación al sistema</div>
+        <canvas id="chart-beb-evolucion" style="max-height:300px"></canvas>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="section-title">Detalle Histórico por Bebida y Mes</div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Bebida</th><th>Total</th>
+            <th>Sep'25</th><th>Oct'25</th><th>Nov'25</th><th>Dic'25</th>
+            <th>Ene'26</th><th>Feb'26</th><th>Mar'26</th><th>Abr'26</th><th>May'26</th>
+            <th>% Total</th>
+          </tr>
+        </thead>
+        <tbody id="beb-tbody"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /tab-bebidas -->
+
+
+</div><!-- /main -->
+
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SCRIPTS -->
+<!-- ══════════════════════════════════════════ -->
+<script>
+// ───────── DATA ─────────
+
+// Gastos operativos reales (ve_gastos de caja, excluye egresos/remesas). Sep25–May26.
+const GASTOS_MENSUALES = [
+  { mes: 'Sep 2025', monto:  126390 },
+  { mes: 'Oct 2025', monto:  938347 },
+  { mes: 'Nov 2025', monto:  795592 },
+  { mes: 'Dic 2025', monto:  581913 },
+  { mes: 'Ene 2026', monto:  637262 },
+  { mes: 'Feb 2026', monto:  624561 },
+  { mes: 'Mar 2026', monto:  656523 },
+  { mes: 'Abr 2026', monto:  402340 },
+  { mes: 'May 2026', monto:  225862 },
+];
+
+// Costo de mercadería por mes (remitos reales de fábrica Sep25–May26)
+// Sep y May son parciales (primer y último remito fuera del mes completo)
+const COSTO_FABRICA = [
+  { mes: 'Sep 2025', fab:  3179764, ops:  126390 },
+  { mes: 'Oct 2025', fab: 11357595, ops:  938347 },
+  { mes: 'Nov 2025', fab: 11605125, ops:  795592 },
+  { mes: 'Dic 2025', fab:  9967958, ops:  581913 },
+  { mes: 'Ene 2026', fab:  8060474, ops:  637262 },
+  { mes: 'Feb 2026', fab:  8869601, ops:  624561 },
+  { mes: 'Mar 2026', fab: 13599896, ops:  656523 },
+  { mes: 'Abr 2026', fab: 14179122, ops:  402340 },
+  { mes: 'May 2026', fab:  8048180, ops:  225862 },
+];
+
+const GASTOS_CATEGORIAS = [
+  { cat: 'Sueldos y Personal', monto: 10262349 },
+  { cat: 'Ingredientes / Alimentos', monto: 1252750 },
+  { cat: 'Costos Directos Variables', monto: 556534 },
+  { cat: 'Abonos y Servicios', monto: 491200 },
+  { cat: 'Packaging y Papelería', monto: 326633 },
+  { cat: 'Almacén / Insumos', monto: 133511 },
+  { cat: 'Limpieza y Librería', monto: 195547 },
+  { cat: 'Otros / Varios', monto: 811850 },
+];
+
+const PROVEEDORES_ALIMENTOS = [
+  { nombre: 'A1 Alimentos – Rosario Rodriguez', monto: 339250, registros: 104 },
+  { nombre: 'A1 Alimentos – Joselyn Villagomez', monto: 279150, registros: 102 },
+  { nombre: 'A1 Alimentos – Carolina Crespo', monto: 261400, registros: 100 },
+  { nombre: 'Facundo Callara', monto: 136200, registros: 56 },
+  { nombre: 'Luis Matheu', monto: 76000, registros: 29 },
+  { nombre: 'A1 Alimentos – Ana Bruzonic', monto: 55000, registros: 24 },
+  { nombre: 'A1 Alimentos – Gabriel', monto: 47000, registros: 16 },
+  { nombre: 'A1 Alimentos – Ciro Colombani', monto: 33000, registros: 11 },
+  { nombre: 'Almacén / Fiambres / Jamón', monto: 225470, registros: 45 },
+];
+
+const VENTAS_DIARIAS = [
+  { fecha: '02/03 Lun', uds: 1766 },
+  { fecha: '03/03 Mar', uds: 1880 },
+  { fecha: '04/03 Mié', uds: 2002 },
+  { fecha: '05/03 Jue', uds: 2376 },
+  { fecha: '06/03 Vie', uds: 1924 },
+  { fecha: '07/03 Sáb', uds: 1660 },
+  { fecha: '09/03 Lun', uds: 1932 },
+  { fecha: '10/03 Mar', uds: 2162 },
+  { fecha: '11/03 Mié', uds: 2148 },
+  { fecha: '12/03 Jue', uds: 2366 },
+  { fecha: '13/03 Vie', uds: 2434 },
+  { fecha: '14/03 Sáb', uds: 1354 },
+];
+
+// Ventas diarias ABRIL 2026 — datos reales Datalive (ARS)
+const VENTAS_ABRIL = [
+  { fecha: '01/04 Mié', revenue: 1226384, comandas: 251 },
+  { fecha: '02/04 Jue', revenue:  669789, comandas: 136 },
+  { fecha: '03/04 Vie', revenue:  681822, comandas: 113 },
+  { fecha: '04/04 Sáb', revenue:  845865, comandas: 148 },
+  { fecha: '06/04 Lun', revenue:  972082, comandas: 236 },
+  { fecha: '07/04 Mar', revenue: 1092179, comandas: 278 },
+  { fecha: '08/04 Mié', revenue: 1120501, comandas: 263 },
+  { fecha: '09/04 Jue', revenue: 1291894, comandas: 307 },
+  { fecha: '10/04 Vie', revenue: 1468142, comandas: 322 },
+  { fecha: '11/04 Sáb', revenue:  949259, comandas: 170 },
+  { fecha: '13/04 Lun', revenue: 1335576, comandas: 285 },
+  { fecha: '14/04 Mar', revenue: 1106335, comandas: 243 },
+  { fecha: '15/04 Mié', revenue: 1392155, comandas: 287 },
+  { fecha: '16/04 Jue', revenue: 1201716, comandas: 258 },
+  { fecha: '17/04 Vie', revenue: 1437080, comandas: 296 },
+  { fecha: '18/04 Sáb', revenue:  885269, comandas: 163 },
+  { fecha: '20/04 Lun', revenue: 1256103, comandas: 276 },
+  { fecha: '21/04 Mar', revenue: 1161744, comandas: 271 },
+  { fecha: '22/04 Mié', revenue: 1195403, comandas: 305 },
+  { fecha: '23/04 Jue', revenue: 1261116, comandas: 313 },
+  { fecha: '24/04 Vie', revenue: 1287815, comandas: 273 },
+  { fecha: '25/04 Sáb', revenue:  959066, comandas: 178 },
+  { fecha: '27/04 Lun', revenue: 1406631, comandas: 302 },
+  { fecha: '28/04 Mar', revenue:  691775, comandas: 139 },
+  { fecha: '29/04 Mié', revenue: 1071871, comandas: 247 },
+  { fecha: '30/04 Jue', revenue: 1484323, comandas: 303 },
+];
+
+// Avg por día de semana — ABRIL 2026 (ARS revenue)
+const DOW_PROMEDIOS = [
+  { dia: 'Lunes',     avg: Math.round((972082+1335576+1256103+1406631)/4) },
+  { dia: 'Martes',    avg: Math.round((1092179+1106335+1161744+691775)/4) },
+  { dia: 'Miércoles', avg: Math.round((1226384+1120501+1392155+1195403+1071871)/5) },
+  { dia: 'Jueves',    avg: Math.round((669789+1291894+1201716+1261116+1484323)/5) },
+  { dia: 'Viernes',   avg: Math.round((681822+1468142+1437080+1287815)/4) },
+  { dia: 'Sábado',    avg: Math.round((845865+949259+885269+959066)/4) },
+];
+
+// Ventas diarias MAYO 2026 — datos REALES Datalive (rp_ventas_valorizado)
+// 01/05 feriado (Día del Trabajador) · 25/05 feriado (Revolución de Mayo) · domingos cerrado
+const VENTAS_MAYO = [
+  { fecha: '01/05 Vie*', revenue:  496450, comandas:  95 },
+  { fecha: '04/05 Lun',  revenue: 1211938, comandas: 266 },
+  { fecha: '05/05 Mar',  revenue: 1417146, comandas: 315 },
+  { fecha: '06/05 Mié',  revenue: 1442295, comandas: 316 },
+  { fecha: '07/05 Jue',  revenue: 1229370, comandas: 271 },
+  { fecha: '08/05 Vie',  revenue: 1399218, comandas: 300 },
+  { fecha: '09/05 Sáb',  revenue: 1198594, comandas: 191 },
+  { fecha: '11/05 Lun',  revenue: 1406428, comandas: 325 },
+  { fecha: '12/05 Mar',  revenue: 1211434, comandas: 246 },
+  { fecha: '13/05 Mié',  revenue: 1573942, comandas: 348 },
+  { fecha: '14/05 Jue',  revenue: 1366546, comandas: 303 },
+  { fecha: '15/05 Vie',  revenue: 1567268, comandas: 310 },
+  { fecha: '16/05 Sáb',  revenue: 1162803, comandas: 210 },
+  { fecha: '18/05 Lun',  revenue: 1302532, comandas: 318 },
+  { fecha: '19/05 Mar',  revenue: 1419919, comandas: 317 },
+  { fecha: '20/05 Mié',  revenue: 1328998, comandas: 297 },
+  { fecha: '21/05 Jue',  revenue: 1403633, comandas: 334 },
+  { fecha: '22/05 Vie',  revenue: 1642348, comandas: 320 },
+  { fecha: '23/05 Sáb',  revenue:  884070, comandas: 174 },
+  { fecha: '25/05 Lun*', revenue:  605550, comandas: 122 },
+  { fecha: '26/05 Mar',  revenue: 1127055, comandas: 300 },
+  { fecha: '27/05 Mié',  revenue: 1174421, comandas: 301 },
+  { fecha: '28/05 Jue',  revenue: 1295149, comandas: 302 },
+  { fecha: '29/05 Vie',  revenue: 1627814, comandas: 311 },
+  { fecha: '30/05 Sáb',  revenue: 1044156, comandas: 206 },
+];
+
+// Avg por día de semana — MAYO 2026 (excluye feriados 01/05 y 25/05)
+const DOW_PROMEDIOS_MAYO = [
+  { dia: 'Lunes',     avg: Math.round((1211938+1406428+1302532)/3) },
+  { dia: 'Martes',    avg: Math.round((1417146+1211434+1419919+1127055)/4) },
+  { dia: 'Miércoles', avg: Math.round((1442295+1573942+1328998+1174421)/4) },
+  { dia: 'Jueves',    avg: Math.round((1229370+1366546+1403633+1295149)/4) },
+  { dia: 'Viernes',   avg: Math.round((1399218+1567268+1642348+1627814)/4) },
+  { dia: 'Sábado',    avg: Math.round((1198594+1162803+884070+1044156)/4) },
+];
+
+// Ventas diarias JUNIO 2026 — datos REALES Datalive
+const VENTAS_JUNIO = [
+  { fecha: '01/06 Lun',  revenue: 1270643, comandas: 301 },
+];
+
+// Avg por día de semana — JUNIO 2026 (sólo datos disponibles)
+const DOW_PROMEDIOS_JUNIO = [
+  { dia: 'Lunes',     avg: 1270643 },
+  { dia: 'Martes',    avg: 0 },
+  { dia: 'Miércoles', avg: 0 },
+  { dia: 'Jueves',    avg: 0 },
+  { dia: 'Viernes',   avg: 0 },
+  { dia: 'Sábado',    avg: 0 },
+];
+
+// Productos — precios REALES de Datalive (rp_lista_precios), volúmenes REALES abril 2026
+// Costos de fábrica REALES tomados de remitos (Sep 2025 – May 2026)
+const PRODUCTOS = [
+  { nombre: 'Medialunas',              avg: 164.2,  total: 4926,  totalMayo: 3108, avgMayo: 239.1, categoria: 'Varios',    precio: 400,  costo: 220 },
+  { nombre: 'Jamón y Queso',           avg: 159.03, total: 4771,  totalMayo: 2875, avgMayo: 221.2, categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Carne Cuchillo',          avg: 77.53,  total: 2326,  totalMayo: 1435, avgMayo: 110.4, categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Carne Suave',             avg: 63.53,  total: 1906,  totalMayo: 1188, avgMayo: 91.4,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Cheeseburger',            avg: 57.37,  total: 1721,  totalMayo: 1016, avgMayo: 78.2,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Pollo',                   avg: 50.13,  total: 1504,  totalMayo: 921,  avgMayo: 70.8,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Bondiola',                avg: 43.67,  total: 1310,  totalMayo: 839,  avgMayo: 64.5,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Carne Picante',           avg: 37.57,  total: 1127,  totalMayo: 631,  avgMayo: 48.5,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Capresse',                avg: 34.53,  total: 1036,  totalMayo: 628,  avgMayo: 48.3,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Roquefort con Jamón',     avg: 33.33,  total: 1000,  totalMayo: 649,  avgMayo: 49.9,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Cebolla y Queso',         avg: 29.8,   total: 894,   totalMayo: 544,  avgMayo: 41.8,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Verdura',                 avg: 25.33,  total: 760,   totalMayo: 462,  avgMayo: 35.5,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Humita',                  avg: 21.2,   total: 636,   totalMayo: 398,  avgMayo: 30.6,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Coca Cola 500/600ml',     avg: 13.77,  total: 413,   totalMayo: 279,  avgMayo: 21.5,  categoria: 'Bebida',    precio: 2300, costo: 900 },
+  { nombre: 'Puerro y Hongos',         avg: 12.23,  total: 367,   totalMayo: 195,  avgMayo: 15.0,  categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Choclo y Calabaza',       avg: 4.43,   total: 133,   totalMayo: 40,   avgMayo: 4.4,   categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Pollo al Curry Vegana',   avg: 3.93,   total: 118,   totalMayo: 65,   avgMayo: 5.0,   categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Carne a la Criolla Veg.', avg: 3.8,    total: 114,   totalMayo: 44,   avgMayo: 4.9,   categoria: 'Empanada',  precio: 1000, costo: 500 },
+  { nombre: 'Pizza Muzzarella',        avg: 5.03,   total: 151,   totalMayo: 89,   avgMayo: 6.8,   categoria: 'Pizza',     precio: 8200, costo: 3100 },
+  { nombre: 'Pizza Mega Muzzarella',   avg: 1.0,    total: 30,    totalMayo: 26,   avgMayo: 2.0,   categoria: 'Pizza',     precio: 11500,costo: 4600 },
+];
+
+const TOTALES_MENSUALES = {
+  '2025-09': { 'Jamón y Queso':619, 'Carne Cuchillo':369, 'Carne Suave':350, 'Cheeseburger':327, 'Pollo':281, 'Bondiola':234, 'Carne Picante':206, 'Roquefort con Jamón':194, 'Cebolla y Queso':157, 'Humita':143, 'Medialunas':140, 'Capresse':138, 'Verdura':127, 'Puerro y Hongos':51, 'Pizza Muzzarella':33, 'Carne a la Criolla Veg.':22, 'Pollo al Curry Vegana':18, 'Choclo y Calabaza':15, 'Pizza Mega Muzzarella':5 },
+  '2025-10': { 'Jamón y Queso':3240, 'Carne Cuchillo':2245, 'Cheeseburger':1620, 'Pollo':1507, 'Medialunas':1463, 'Carne Suave':1460, 'Bondiola':1380, 'Carne Picante':1036, 'Roquefort con Jamón':942, 'Capresse':923, 'Cebolla y Queso':747, 'Humita':688, 'Verdura':624, 'Puerro y Hongos':424, 'Pizza Muzzarella':181, 'Choclo y Calabaza':141, 'Pollo al Curry Vegana':128, 'Carne a la Criolla Veg.':112, 'Pizza Mega Muzzarella':25 },
+  '2025-11': { 'Jamón y Queso':3874, 'Carne Cuchillo':2389, 'Cheeseburger':1611, 'Carne Suave':1563, 'Medialunas':1431, 'Pollo':1402, 'Bondiola':1264, 'Roquefort con Jamón':984, 'Capresse':896, 'Carne Picante':895, 'Humita':696, 'Cebolla y Queso':626, 'Verdura':609, 'Puerro y Hongos':428, 'Pizza Muzzarella':168, 'Pollo al Curry Vegana':127, 'Carne a la Criolla Veg.':122, 'Choclo y Calabaza':107, 'Pizza Mega Muzzarella':24 },
+  '2025-12': { 'Jamón y Queso':3633, 'Medialunas':2162, 'Carne Cuchillo':1955, 'Carne Suave':1434, 'Pollo':1202, 'Cheeseburger':1193, 'Bondiola':1026, 'Capresse':865, 'Roquefort con Jamón':847, 'Carne Picante':794, 'Cebolla y Queso':664, 'Verdura':621, 'Humita':585, 'Puerro y Hongos':293, 'Coca Cola 500/600ml':193, 'Pizza Muzzarella':142, 'Pollo al Curry Vegana':123, 'Choclo y Calabaza':102, 'Carne a la Criolla Veg.':101, 'Pizza Mega Muzzarella':35 },
+  '2026-01': { 'Jamón y Queso':3386, 'Medialunas':2212, 'Carne Cuchillo':1876, 'Carne Suave':1235, 'Cheeseburger':1193, 'Pollo':1039, 'Bondiola':827, 'Roquefort con Jamón':783, 'Capresse':775, 'Carne Picante':772, 'Cebolla y Queso':599, 'Humita':544, 'Verdura':510, 'Puerro y Hongos':274, 'Coca Cola 500/600ml':230, 'Pizza Muzzarella':107, 'Carne a la Criolla Veg.':73, 'Pollo al Curry Vegana':64, 'Choclo y Calabaza':63, 'Pizza Mega Muzzarella':27 },
+  '2026-02': { 'Jamón y Queso':3471, 'Medialunas':2619, 'Carne Cuchillo':1823, 'Carne Suave':1401, 'Pollo':1221, 'Cheeseburger':1122, 'Bondiola':930, 'Capresse':781, 'Carne Picante':752, 'Roquefort con Jamón':687, 'Cebolla y Queso':577, 'Humita':572, 'Verdura':533, 'Puerro y Hongos':318, 'Coca Cola 500/600ml':212, 'Choclo y Calabaza':106, 'Carne a la Criolla Veg.':95, 'Pizza Muzzarella':90, 'Pollo al Curry Vegana':87, 'Pizza Mega Muzzarella':22 },
+  '2026-03': { 'Jamón y Queso':4766, 'Medialunas':3801, 'Carne Cuchillo':2406, 'Carne Suave':1801, 'Cheeseburger':1737, 'Pollo':1574, 'Bondiola':1321, 'Carne Picante':1030, 'Capresse':994, 'Roquefort con Jamón':924, 'Verdura':756, 'Cebolla y Queso':735, 'Humita':635, 'Coca Cola 500/600ml':395, 'Puerro y Hongos':372, 'Choclo y Calabaza':142, 'Pizza Muzzarella':106, 'Carne a la Criolla Veg.':103, 'Pollo al Curry Vegana':94, 'Pizza Mega Muzzarella':25 },
+  '2026-04': { 'Medialunas':5231, 'Jamón y Queso':5012, 'Carne Cuchillo':2421, 'Carne Suave':1997, 'Cheeseburger':1806, 'Pollo':1613, 'Bondiola':1370, 'Carne Picante':1190, 'Capresse':1094, 'Roquefort con Jamón':1054, 'Cebolla y Queso':937, 'Verdura':785, 'Humita':685, 'Coca Cola 500/600ml':447, 'Puerro y Hongos':386, 'Pizza Muzzarella':158, 'Choclo y Calabaza':139, 'Pollo al Curry Vegana':120, 'Carne a la Criolla Veg.':115, 'Pizza Mega Muzzarella':33 },
+  '2026-05': { 'Medialunas':3108, 'Jamón y Queso':5360, 'Carne Cuchillo':2584, 'Carne Suave':2080, 'Cheeseburger':1944, 'Pollo':1750, 'Bondiola':1470, 'Roquefort con Jamón':1219, 'Carne Picante':1125, 'Capresse':1157, 'Cebolla y Queso':971, 'Verdura':787, 'Humita':738, 'Puerro y Hongos':366, 'Coca Cola 500/600ml':279, 'Pizza Muzzarella':89, 'Carne a la Criolla Veg.':128, 'Choclo y Calabaza':121, 'Pollo al Curry Vegana':131, 'Pizza Mega Muzzarella':26 },
+};
+
+// ───────── HELPERS ─────────
+
+const fmtARS = v => {
+  if(v >= 1e6) return '$' + (v/1e6).toFixed(1).replace('.',',') + 'M';
+  if(v >= 1e3) return '$' + Math.round(v/1e3).toLocaleString('es-AR') + 'K';
+  return '$' + Math.round(v).toLocaleString('es-AR');
+};
+
+const COLORS = ['#e8470a','#f5a623','#3b82f6','#10b981','#8b5cf6','#ef4444','#06b6d4','#84cc16'];
+const COLORS_ALPHA = COLORS.map(c => c + 'BB');
+
+// ───────── TABS ─────────
+
+function showTab(name, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  // el = the tab element; fallback to event.target for backwards compat
+  const tabEl = el || (typeof event !== 'undefined' ? event.target : null);
+  if(tabEl) tabEl.classList.add('active');
+  // Scroll tab into view on mobile
+  if(tabEl && tabEl.scrollIntoView) tabEl.scrollIntoView({inline:'center', behavior:'smooth'});
+}
+
+// ───────── CHARTS COSTOS ─────────
+
+new Chart(document.getElementById('chart-gastos-mes').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: GASTOS_MENSUALES.map(d => d.mes),
+    datasets: [{
+      label: 'Gasto Total',
+      data: GASTOS_MENSUALES.map(d => d.monto),
+      backgroundColor: GASTOS_MENSUALES.map((d,i) =>
+        d.monto > 3000000 ? '#e8470a' : d.monto > 1500000 ? '#f5a623' : '#93c5fd'),
+      borderRadius: 6, borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: ctx => ' ' + fmtARS(ctx.parsed.y) }
+      }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: {
+        beginAtZero: true,
+        ticks: { callback: v => fmtARS(v) },
+        grid: { color: '#f3f4f6' }
+      }
+    }
+  }
+});
+
+new Chart(document.getElementById('chart-gastos-dist').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: GASTOS_CATEGORIAS.map(d => d.cat),
+    datasets: [{
+      data: GASTOS_CATEGORIAS.map(d => d.monto),
+      backgroundColor: COLORS_ALPHA,
+      borderColor: '#fff', borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '58%',
+    plugins: {
+      legend: { position: 'right', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+            const pct = ((ctx.parsed/total)*100).toFixed(1);
+            return ' '+fmtARS(ctx.parsed)+' ('+pct+'%)';
+          }
+        }
+      }
+    }
+  }
+});
+
+// Proveedores table
+const ptbody = document.getElementById('proveedores-tbody');
+const totalAlim = PROVEEDORES_ALIMENTOS.reduce((a,b)=>a+b.monto,0);
+const maxMonto = Math.max(...PROVEEDORES_ALIMENTOS.map(p=>p.monto));
+PROVEEDORES_ALIMENTOS.forEach((p,i) => {
+  const pct = ((p.monto/totalAlim)*100).toFixed(1);
+  const barW = Math.round((p.monto/maxMonto)*160);
+  ptbody.innerHTML += `<tr>
+    <td style="color:var(--muted);font-size:12px">${i+1}</td>
+    <td style="font-weight:500">${p.nombre}</td>
+    <td style="font-weight:700">${fmtARS(p.monto)}</td>
+    <td style="color:var(--muted)">${p.registros}</td>
+    <td>${pct}%</td>
+    <td><div class="bar-mini"><div class="bar-fill" style="width:${barW}px"></div><span style="font-size:11px;color:var(--muted)">${pct}%</span></div></td>
+  </tr>`;
+});
+
+
+// ───────── CHARTS VENTAS ─────────
+
+function dayColors(data) {
+  return data.map(d => {
+    if(d.revenue >= 1400000) return '#10b981';
+    if(d.revenue <= 750000)  return '#ef4444';
+    return '#3b82f6BB';
+  });
+}
+
+const chartVentasDia = new Chart(document.getElementById('chart-ventas-dia').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: VENTAS_ABRIL.map(d => d.fecha),
+    datasets: [{
+      label: 'Ventas ARS',
+      data: VENTAS_ABRIL.map(d => d.revenue),
+      backgroundColor: dayColors(VENTAS_ABRIL),
+      borderRadius: 5, borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const d = chartVentasDia._mesData[ctx.dataIndex];
+            const cmd = d.comandas ? ' · ' + d.comandas + ' cmd' : '';
+            return ' ' + fmtARS(ctx.parsed.y) + cmd;
+          }
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { beginAtZero: false, min: 500000, ticks: { callback: v => fmtARS(v) }, grid: { color: '#f3f4f6' } }
+    }
+  }
+});
+chartVentasDia._mesData = VENTAS_ABRIL;
+
+const chartVentasDow = new Chart(document.getElementById('chart-ventas-dow').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: DOW_PROMEDIOS.map(d => d.dia),
+    datasets: [{
+      label: 'Promedio ARS',
+      data: DOW_PROMEDIOS.map(d => d.avg),
+      backgroundColor: DOW_PROMEDIOS.map(d =>
+        d.avg >= 1300000 ? '#10b981BB' : d.avg <= 950000 ? '#ef4444BB' : '#f5a623BB'),
+      borderRadius: 5, borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ' ' + fmtARS(ctx.parsed.y) } }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: { beginAtZero: false, min: 700000, ticks: { callback: v => fmtARS(v) }, grid: { color: '#f3f4f6' } }
+    }
+  }
+});
+
+// ── Cambio de mes ──
+function setMes(mes, btn) {
+  document.querySelectorAll('.mes-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const ventas = mes === 'junio' ? VENTAS_JUNIO : (mes === 'mayo' ? VENTAS_MAYO : VENTAS_ABRIL);
+  const dow    = mes === 'junio' ? DOW_PROMEDIOS_JUNIO : (mes === 'mayo' ? DOW_PROMEDIOS_MAYO : DOW_PROMEDIOS);
+  const normal = ventas.filter(d => !d.fecha.includes('*'));  // excluir feriados para avg
+  const total  = ventas.reduce((a,d) => a+d.revenue, 0);
+  const avgD   = Math.round(normal.reduce((a,d) => a+d.revenue, 0) / normal.length);
+  const best   = ventas.reduce((a,d) => d.revenue > a.revenue ? d : a, ventas[0]);
+  const prod1  = PRODUCTOS[0];
+  const label  = mes === 'junio' ? 'Ventas · Junio 2026' : (mes === 'mayo' ? 'Ventas · Mayo 2026' : 'Ventas · Abril 2026');
+  const diasSub= mes === 'junio' ? '1 día disponible · datos reales Datalive' : (mes === 'mayo' ? '25 días disponibles · datos reales Datalive' : '26 días hábiles · datos reales Datalive');
+
+  document.getElementById('kpi-v-label').textContent   = label;
+  document.getElementById('kpi-v-total').textContent   = fmtARS(total);
+  document.getElementById('kpi-v-dias').textContent    = diasSub;
+  document.getElementById('kpi-v-avg').textContent     = fmtARS(avgD);
+  document.getElementById('kpi-v-avg-sub').textContent = mes === 'junio' ? '1 día disponible' : (mes === 'mayo' ? '23 días hábiles (excl. feriados)' : '245 cmd/día promedio');
+  document.getElementById('kpi-v-mejor').textContent   = fmtARS(best.revenue);
+  document.getElementById('kpi-v-mejor-sub').textContent = best.fecha;
+  document.getElementById('kpi-v-prod1').textContent   = prod1.nombre;
+  const t = mes === 'mayo' ? prod1.totalMayo : prod1.total;
+  const a = mes === 'mayo' ? prod1.avgMayo   : prod1.avg;
+  document.getElementById('kpi-v-prod1-sub').textContent = `${t.toLocaleString('es-AR')} unid. · ${a.toFixed(0)}/día`;
+
+  // Daily chart
+  chartVentasDia._mesData = ventas;
+  chartVentasDia.data.labels = ventas.map(d => d.fecha);
+  chartVentasDia.data.datasets[0].data = ventas.map(d => d.revenue);
+  chartVentasDia.data.datasets[0].backgroundColor = dayColors(ventas);
+  chartVentasDia.update();
+
+  // DOW chart
+  chartVentasDow.data.labels = dow.map(d => d.dia);
+  chartVentasDow.data.datasets[0].data = dow.map(d => d.avg);
+  chartVentasDow.data.datasets[0].backgroundColor = dow.map(d =>
+    d.avg >= 1300000 ? '#10b981BB' : d.avg <= 950000 ? '#ef4444BB' : '#f5a623BB');
+  chartVentasDow.update();
+
+  // Top productos chart
+  const totalKey = mes === 'mayo' ? 'totalMayo' : 'total';
+  chartTopProductos._mesKey = mes;
+  chartTopProductos.data.datasets[0].data = PRODUCTOS.map(p => p[totalKey]);
+  chartTopProductos.update();
+
+  // Revenue por producto (re-sort para el mes activo)
+  const revS = sortedByRevenue(mes);
+  chartRevProducto._mesKey = mes;
+  chartRevProducto.data.labels = revS.map(p => p.nombre);
+  chartRevProducto.data.datasets[0].data = revS.map(p => p[totalKey] * p.precio);
+  chartRevProducto.data.datasets[0].backgroundColor = revS.map((p,i) => COLORS[i % COLORS.length] + 'CC');
+  chartRevProducto.update();
+
+  // Revenue por categoría
+  const cat = catRevenueData(mes);
+  chartRevCategoria.data.labels = Object.keys(cat);
+  chartRevCategoria.data.datasets[0].data = Object.values(cat);
+  chartRevCategoria.update();
+
+  // Títulos dinámicos
+  const mesLabel = mes === 'mayo' ? 'Mayo 2026' : 'Abril 2026';
+  document.getElementById('title-top-productos').textContent   = `Top Productos por Volumen · ${mesLabel}`;
+  document.getElementById('title-revenue-producto').textContent = `Revenue Estimado por Producto · ${mesLabel}`;
+  document.getElementById('title-revenue-categoria').textContent = `Revenue por Categoría · ${mesLabel}`;
+}
+
+const chartTopProductos = new Chart(document.getElementById('chart-top-productos').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: PRODUCTOS.map(p => p.nombre),
+    datasets: [{
+      label: 'Unidades',
+      data: PRODUCTOS.map(p => p.total),
+      backgroundColor: PRODUCTOS.map((p,i) => COLORS[i % COLORS.length] + 'CC'),
+      borderRadius: 4, borderWidth: 0,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => {
+        const k = chartTopProductos._mesKey || 'abril';
+        const p = PRODUCTOS[ctx.dataIndex];
+        const avg = k === 'mayo' ? p.avgMayo : p.avg;
+        return ' '+ctx.parsed.x.toLocaleString('es-AR')+' unid · '+avg.toFixed(1)+'/día';
+      }}}
+    },
+    scales: {
+      x: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+      y: { grid: { display: false }, ticks: { autoSkip: false, font: { size: 11 } } }
+    }
+  }
+});
+chartTopProductos._mesKey = 'abril';
+
+function sortedByRevenue(mesKey) {
+  const key = mesKey === 'mayo' ? 'totalMayo' : 'total';
+  return [...PRODUCTOS].sort((a,b) => (b[key]*b.precio) - (a[key]*a.precio));
+}
+
+const chartRevProducto = new Chart(document.getElementById('chart-revenue-producto').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: sortedByRevenue('abril').map(p => p.nombre),
+    datasets: [{
+      label: 'Revenue',
+      data: sortedByRevenue('abril').map(p => p.total * p.precio),
+      backgroundColor: sortedByRevenue('abril').map((p,i) => COLORS[i % COLORS.length] + 'CC'),
+      borderRadius: 4, borderWidth: 0,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => {
+        const k = chartRevProducto._mesKey || 'abril';
+        const sorted = sortedByRevenue(k);
+        const p = sorted[ctx.dataIndex];
+        const t = k === 'mayo' ? p.totalMayo : p.total;
+        return ' '+fmtARS(ctx.parsed.x)+' ('+t.toLocaleString('es-AR')+' unid × '+fmtARS(p.precio)+')';
+      }}}
+    },
+    scales: {
+      x: { beginAtZero: true, ticks: { callback: v => fmtARS(v) }, grid: { color: '#f3f4f6' } },
+      y: { grid: { display: false }, ticks: { autoSkip: false, font: { size: 11 } } }
+    }
+  }
+});
+chartRevProducto._mesKey = 'abril';
+
+// Revenue por categoría
+function catRevenueData(mesKey) {
+  const key = mesKey === 'mayo' ? 'totalMayo' : 'total';
+  const cat = {};
+  PRODUCTOS.forEach(p => {
+    if(!cat[p.categoria]) cat[p.categoria] = 0;
+    cat[p.categoria] += p[key] * p.precio;
+  });
+  return cat;
+}
+
+const chartRevCategoria = new Chart(document.getElementById('chart-revenue-categoria').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(catRevenueData('abril')),
+    datasets: [{
+      data: Object.values(catRevenueData('abril')),
+      backgroundColor: COLORS_ALPHA, borderColor: '#fff', borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '55%',
+    plugins: {
+      legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const t = ctx.dataset.data.reduce((a,b)=>a+b,0);
+            return ' '+fmtARS(ctx.parsed)+' ('+(ctx.parsed/t*100).toFixed(1)+'%)';
+          }
+        }
+      }
+    }
+  }
+});
+
+
+// ───────── PIZZAS ─────────
+
+const PIZZA_MESES = ['Sep\'25','Oct\'25','Nov\'25','Dic\'25','Ene\'26','Feb\'26','Mar\'26','Abr\'26','May\'26'];
+
+// [nombre, total, [mensual...]]
+const PIZZAS = [
+  ['Muzzarella',              1145, [33,181,168,142,107, 90,106,158,160]],
+  ['Mega Muzzarella',          232, [ 5, 25, 24, 35, 27, 22, 25, 33, 36]],
+  ['Muzzarella c/ Jamón',      110, [ 0, 12, 18, 16, 14, 15, 10, 13, 12]],
+  ['Napolitana',                49, [ 0,  7, 10,  8,  6,  4,  6,  4,  4]],
+  ['Napolitana c/ Jamón',       48, [ 1,  6,  8,  3,  3,  8,  7,  8,  4]],
+  ['Especial',                  49, [ 0,  4,  6,  4,  8,  7,  7,  4,  9]],
+  ['Mega Muzz. c/ Jamón',       36, [ 0,  5,  1,  6,  3,  4,  8,  5,  4]],
+  ['Cuatro Quesos',             38, [ 0,  2,  4,  0,  5,  1,  8, 13,  5]],
+  ['Calabresa',                 33, [ 2,  1,  3,  3,  3,  3,  8,  6,  4]],
+  ['Mega Calabresa',            32, [ 0,  2,  3,  2,  3,  3,  6,  9,  4]],
+  ['Mega Napolitana',           25, [ 0,  9,  5,  2,  2,  0,  5,  0,  2]],
+  ['Muzzarella c/ Morrones',    23, [ 1,  5,  4,  1,  4,  0,  4,  2,  2]],
+  ['Fugazza c/ Jamón y Muzz.',  16, [ 2,  2,  1,  2,  0,  2,  2,  1,  4]],
+  ['Fugazza c/ Muzzarella',     11, [ 0,  1,  1,  1,  3,  2,  1,  1,  1]],
+  ['Mega Especial',             20, [ 1,  4,  2,  1,  0,  0,  5,  3,  4]],
+  ['Roquefort',                  9, [ 0,  1,  0,  0,  0,  0,  0,  0,  8]],
+  ['Provolone',                  5, [ 1,  0,  1,  0,  0,  0,  0,  2,  1]],
+  ['Fugazza Mega c/ Muzz.',      6, [ 1,  0,  1,  2,  0,  0,  1,  0,  1]],
+];
+
+const pizzaTotal = PIZZAS.reduce((a,p) => a+p[1], 0);
+const PIZZA_COLORS = ['#e8470a','#f5a623','#3b82f6','#10b981','#8b5cf6',
+                      '#ef4444','#06b6d4','#84cc16','#f59e0b','#6366f1',
+                      '#14b8a6','#ec4899','#64748b','#a3e635','#fb923c',
+                      '#34d399','#c084fc','#f472b6'];
+
+// Ranking bar chart
+new Chart(document.getElementById('chart-pizza-ranking').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: PIZZAS.map(p => p[0]),
+    datasets: [{
+      label: 'Unidades',
+      data: PIZZAS.map(p => p[1]),
+      backgroundColor: PIZZA_COLORS,
+      borderRadius: 4, borderWidth: 0,
+    }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => {
+        const pct = (ctx.parsed.x / pizzaTotal * 100).toFixed(1);
+        return ` ${ctx.parsed.x} unid · ${pct}% del total`;
+      }}}
+    },
+    scales: {
+      x: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+      y: { grid: { display: false }, ticks: { autoSkip: false, font: { size: 11 } } }
+    }
+  }
+});
+
+// Torta (top 5 + Otros)
+const top5 = PIZZAS.slice(0,5);
+const otrosTotal = PIZZAS.slice(5).reduce((a,p) => a+p[1], 0);
+new Chart(document.getElementById('chart-pizza-torta').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: [...top5.map(p=>p[0]), 'Otros'],
+    datasets: [{
+      data: [...top5.map(p=>p[1]), otrosTotal],
+      backgroundColor: [...PIZZA_COLORS.slice(0,5), '#cbd5e1'],
+      borderColor: '#fff', borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '55%',
+    plugins: {
+      legend: { position: 'bottom', labels: { usePointStyle: true, padding: 10, font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => {
+        const pct = (ctx.parsed / pizzaTotal * 100).toFixed(1);
+        return ` ${ctx.parsed} unid · ${pct}%`;
+      }}}
+    }
+  }
+});
+
+// ── buildSemanasDynamic: tabla semana a semana del mes en curso ──
+function buildSemanasDynamic(tbodyId, diariasObj, feriadosSet, theadId) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const allKeys = Object.keys(diariasObj).sort();
+  if (!allKeys.length) return;
+  const curMonth = allKeys[allKeys.length - 1].substring(0, 7);
+  const [y, m] = curMonth.split('-').map(Number);
+  let firstMon = new Date(y, m - 1, 1);
+  while (firstMon.getDay() !== 1) firstMon.setDate(firstMon.getDate() + 1);
+  const diasNombre = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const weekData = {};
+  diasNombre.forEach(d => { weekData[d] = []; });
+  let numWeeks = 0;
+  allKeys.filter(k => k.startsWith(curMonth)).forEach(k => {
+    const d = new Date(k + 'T12:00:00');
+    const dow = (d.getDay() + 6) % 7;
+    if (dow >= 6) return;
+    const wi = Math.floor((d - firstMon) / (7 * 86400000));
+    if (wi < 0) return;
+    const dia = diasNombre[dow];
+    while (weekData[dia].length <= wi) weekData[dia].push(null);
+    weekData[dia][wi] = diariasObj[k];
+    if (wi + 1 > numWeeks) numWeeks = wi + 1;
+  });
+  diasNombre.forEach(d => { while (weekData[d].length < numWeeks) weekData[d].push(null); });
+  const thead = theadId ? document.getElementById(theadId) : null;
+  if (thead) {
+    const weekCols = Array.from({length: numWeeks}, (_, wi) => {
+      const mon = new Date(firstMon); mon.setDate(firstMon.getDate() + wi * 7);
+      const sat = new Date(mon); sat.setDate(mon.getDate() + 5);
+      const fmt = dt => String(dt.getDate()).padStart(2,'0') + '/' + String(dt.getMonth()+1).padStart(2,'0');
+      return `<th style="text-align:center">Sem ${wi+1}<br><span style="font-weight:400;font-size:10px">${fmt(mon)}&ndash;${fmt(sat)}</span></th>`;
+    }).join('');
+    thead.querySelector('tr').innerHTML = `<th>Día</th>${weekCols}<th style="text-align:center">Promedio</th><th style="text-align:center">Variación</th>`;
+  }
+  diasNombre.forEach(dia => {
+    const vals = weekData[dia];
+    const dowIdx = diasNombre.indexOf(dia);
+    const validVals = vals.filter((v, wi) => {
+      if (v === null) return false;
+      const dt = new Date(firstMon); dt.setDate(firstMon.getDate() + wi * 7 + dowIdx);
+      return !feriadosSet.has(dt.toISOString().split('T')[0]);
+    });
+    const avg = validVals.length ? Math.round(validVals.reduce((s,v)=>s+v,0)/validVals.length) : 0;
+    const nonNull = vals.filter(v => v !== null);
+    const lastVal = nonNull.length ? nonNull[nonNull.length-1] : null;
+    const varPct = avg > 0 && lastVal !== null ? ((lastVal - avg)/avg*100) : null;
+    const varStr = varPct !== null ? ((varPct>=0?'▲':'▼')+Math.abs(varPct).toFixed(0)+'%') : '—';
+    const varColor = varPct===null?'var(--muted)':varPct>=0?'#10b981':'#ef4444';
+    const maxV = nonNull.length ? Math.max(...nonNull) : null;
+    const minV = nonNull.length ? Math.min(...nonNull) : null;
+    const celdas = vals.map((v, wi) => {
+      if (v === null) return `<td style="text-align:center;color:#ccc">—</td>`;
+      const dt = new Date(firstMon); dt.setDate(firstMon.getDate() + wi*7 + dowIdx);
+      const dateStr = dt.toISOString().split('T')[0];
+      const isFeriado = feriadosSet.has(dateStr);
+      const bg = v===maxV ? '#d1fae5' : (v===minV && maxV!==minV ? '#fee2e2' : 'transparent');
+      const nota = isFeriado ? '<span style="font-size:9px;color:#f59e0b;display:block">feriado</span>' : '';
+      return `<td style="text-align:center;background:${bg};font-weight:600">${v.toLocaleString('es-AR')}${nota}</td>`;
+    }).join('');
+    tbody.innerHTML += `<tr>
+      <td style="font-weight:600">${dia}</td>
+      ${celdas}
+      <td style="text-align:center;color:var(--muted)">${avg.toLocaleString('es-AR')}</td>
+      <td style="text-align:center;font-weight:700;color:${varColor}">${varStr}</td>
+    </tr>`;
+  });
+  const lastWeekHasSat = weekData['Sábado'][numWeeks-1] !== null;
+  const semTotals = Array.from({length: numWeeks}, (_,wi) =>
+    diasNombre.reduce((sum,d) => sum + (weekData[d][wi]||0), 0));
+  const totCeldas = semTotals.map((v,wi) => {
+    const lbl = (!lastWeekHasSat && wi===numWeeks-1)
+      ? `${v.toLocaleString('es-AR')}<span style="font-size:9px;color:#f59e0b;display:block">sin sáb</span>`
+      : v.toLocaleString('es-AR');
+    return `<td style="text-align:center;font-weight:700;color:var(--accent)">${lbl}</td>`;
+  }).join('');
+  tbody.innerHTML += `<tr style="background:#fef9f5;border-top:2px solid var(--accent)">
+    <td style="font-weight:700;color:var(--accent)">TOTAL</td>
+    ${totCeldas}
+    <td colspan="2"></td>
+  </tr>`;
+  return new Date(y, m-1, 1).toLocaleDateString('es-AR', {month:'long', year:'numeric'});
+}
+
+// ── topLabelsPlugin global: etiquetas encima de barras ──
+const topLabelsPlugin = {
+  id: 'topLabels',
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach((ds, di) => {
+      const meta = chart.getDatasetMeta(di);
+      meta.data.forEach((bar, idx) => {
+        const v = ds.data[idx];
+        if (!v) return;
+        ctx.save();
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillStyle = '#374151';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(v, bar.x, bar.y - 3);
+        ctx.restore();
+      });
+    });
+  }
+};
+
+// Evolución mensual top 5
+// Grandes vs Megas por mes
+(function() {
+  const totGrandes = PIZZA_MESES.map((_,mi) => PIZZAS.filter(p=>/mega/i.test(p[0])===false).reduce((s,p)=>s+p[2][mi],0));
+  const totMegas   = PIZZA_MESES.map((_,mi) => PIZZAS.filter(p=>/mega/i.test(p[0])).reduce((s,p)=>s+p[2][mi],0));
+
+  const topLabelsPlugin = {
+    id: 'topLabels',
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      chart.data.datasets.forEach((ds, di) => {
+        const meta = chart.getDatasetMeta(di);
+        meta.data.forEach((bar, idx) => {
+          const v = ds.data[idx];
+          if (!v) return;
+          ctx.save();
+          ctx.font = 'bold 10px sans-serif';
+          ctx.fillStyle = '#374151';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(v, bar.x, bar.y - 3);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+  new Chart(document.getElementById('chart-pizza-evolucion').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: PIZZA_MESES,
+      datasets: [
+        {
+          label: 'Grandes 32cm',
+          data: totGrandes,
+          backgroundColor: '#e8470aBB',
+          borderRadius: 5, borderWidth: 0,
+        },
+        {
+          label: 'Megas 40cm',
+          data: totMegas,
+          backgroundColor: '#3b82f6BB',
+          borderRadius: 5, borderWidth: 0,
+        }
+      ]
+    },
+    plugins: [topLabelsPlugin],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 18 } },
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, padding: 14, font: { size: 12 } } },
+        tooltip: {
+          mode: 'index', intersect: false,
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} unid` }
+        }
+      },
+      scales: {
+        x: { grid: { color: '#f3f4f6' } },
+        y: { beginAtZero: true, ticks: { stepSize: 20 }, grid: { color: '#f3f4f6' } }
+      }
+    }
+  });
+})();
+
+
+// Datos diarios reales de pizzas — Grandes (32cm) y Megas (40cm) · May 2026
+const PIZZA_DIARIAS_G = {
+  '2026-05-01':3,  '2026-05-04':6,  '2026-05-05':0,  '2026-05-06':9,  '2026-05-07':7,
+  '2026-05-08':13, '2026-05-09':26, '2026-05-11':8,  '2026-05-12':1,  '2026-05-13':11,
+  '2026-05-14':9,  '2026-05-15':17, '2026-05-16':11, '2026-05-18':3,  '2026-05-19':7,
+  '2026-05-20':8,  '2026-05-21':6,  '2026-05-22':18, '2026-05-23':14, '2026-05-25':4,
+  '2026-05-26':11, '2026-05-27':3,  '2026-05-28':7,  '2026-05-29':13
+};
+const PIZZA_DIARIAS_M = {
+  '2026-05-01':2, '2026-05-04':5, '2026-05-05':6, '2026-05-06':1,  '2026-05-07':0,
+  '2026-05-08':2, '2026-05-09':6, '2026-05-11':3, '2026-05-12':4,  '2026-05-13':3,
+  '2026-05-14':0, '2026-05-15':3, '2026-05-16':3, '2026-05-18':0,  '2026-05-19':2,
+  '2026-05-20':3, '2026-05-21':0, '2026-05-22':3, '2026-05-23':0,  '2026-05-25':1,
+  '2026-05-26':0, '2026-05-27':0, '2026-05-28':1, '2026-05-29':4
+};
+// Tabla detalle — separada en Grandes y Megas
+(function() {
+  const GRANDES = PIZZAS.filter(p => !/mega/i.test(p[0]));
+  const MEGAS   = PIZZAS.filter(p =>  /mega/i.test(p[0]));
+  const PIZZA_DIAS_OP = 24; // días operativos mayo 2026
+
+  function buildPizzaTable(tbodyId, grupo) {
+    const tbody = document.getElementById(tbodyId);
+    grupo.forEach((p, i) => {
+      const pct  = (p[1] / pizzaTotal * 100).toFixed(1);
+      const barW = Math.round(p[1] / grupo[0][1] * 120);
+      const avgMayo = (p[2][8] / PIZZA_DIAS_OP).toFixed(2);
+      const celdas = p[2].map((v, mi) => {
+        const prev = mi > 0 ? p[2][mi-1] : null;
+        const badge = varBadgeGen(v, prev);
+        return `<td style="text-align:center;color:${v>0?'var(--text)':'#ccc'}">${v||'—'}${badge}</td>`;
+      }).join('');
+      tbody.innerHTML += `<tr>
+        <td style="color:var(--muted);font-size:12px">${i+1}</td>
+        <td style="font-weight:500">${p[0]}</td>
+        <td><div class="bar-mini"><div class="bar-fill" style="width:${barW}px;background:${PIZZA_COLORS[PIZZAS.indexOf(p)]}"></div><strong>${p[1]}</strong></div></td>
+        ${celdas}
+        <td style="text-align:center;background:#fff8f3;font-weight:700;color:var(--accent)">${avgMayo}</td>
+        <td><span style="font-weight:700;color:var(--muted)">${pct}%</span></td>
+      </tr>`;
+    });
+    // Fila de totales mensuales
+    const totMes = PIZZA_MESES.map((_, mi) => grupo.reduce((a, p) => a + p[2][mi], 0));
+    const totCeldas = totMes.map(v => `<td style="text-align:center;font-weight:700">${v || '—'}</td>`).join('');
+    const totTotal  = grupo.reduce((a, p) => a + p[1], 0);
+    const totAvg = (totMes[8] / PIZZA_DIAS_OP).toFixed(2);
+    tbody.innerHTML += `<tr style="background:#f9fafb;border-top:2px solid var(--border)">
+      <td colspan="2" style="color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Total</td>
+      <td><strong>${totTotal}</strong></td>
+      ${totCeldas}
+      <td style="text-align:center;background:#fff8f3;font-weight:700;color:var(--accent)">${totAvg}</td>
+      <td></td>
+    </tr>`;
+  }
+
+  buildPizzaTable('pizza-tbody-grandes', GRANDES);
+  buildPizzaTable('pizza-tbody-megas',   MEGAS);
+
+  // ── Tablas semana a semana — mes en curso (dinámico) ──
+  const FERIADOS_PIZZA = new Set(['2026-05-01','2026-05-25']);
+  const mesLabelG = buildSemanasDynamic('pizza-grandes-semanas-tbody', PIZZA_DIARIAS_G, FERIADOS_PIZZA, 'pizza-grandes-semanas-thead');
+  const mesLabelM = buildSemanasDynamic('pizza-megas-semanas-tbody',   PIZZA_DIARIAS_M, FERIADOS_PIZZA, 'pizza-megas-semanas-thead');
+  if (mesLabelG) {
+    const tG = document.getElementById('title-pizza-grandes-semanas');
+    const tM = document.getElementById('title-pizza-megas-semanas');
+    if(tG) tG.textContent = '🍕 Grandes por semana · ' + mesLabelG;
+    if(tM) tM.textContent = '🍕 Megas por semana · ' + mesLabelM;
+  }
+})();
+
+// Datos diarios reales de empanadas — extraídos de XLS Volumen de ventas (Sep25–May26)
+const EMP_DIARIAS = {'2025-09-23':336, '2025-09-24':479, '2025-09-25':605, '2025-09-26':488, '2025-09-27':334, '2025-09-29':452, '2025-09-30':557, '2025-10-01':657, '2025-10-02':583, '2025-10-03':594, '2025-10-04':394, '2025-10-06':589, '2025-10-07':557, '2025-10-08':694, '2025-10-09':637, '2025-10-10':306, '2025-10-11':416, '2025-10-13':603, '2025-10-14':589, '2025-10-15':778, '2025-10-16':709, '2025-10-17':846, '2025-10-18':536, '2025-10-20':583, '2025-10-21':622, '2025-10-22':726, '2025-10-23':731, '2025-10-24':769, '2025-10-25':564, '2025-10-27':640, '2025-10-28':693, '2025-10-29':748, '2025-10-30':862, '2025-10-31':791, '2025-11-01':491, '2025-11-03':722, '2025-11-04':700, '2025-11-05':913, '2025-11-06':926, '2025-11-07':689, '2025-11-08':608, '2025-11-10':719, '2025-11-11':815, '2025-11-12':839, '2025-11-13':753, '2025-11-14':826, '2025-11-15':751, '2025-11-17':654, '2025-11-18':716, '2025-11-19':1006, '2025-11-20':746, '2025-11-21':522, '2025-11-22':510, '2025-11-24':439, '2025-11-25':552, '2025-11-26':715, '2025-11-27':755, '2025-11-28':839, '2025-11-29':387, '2025-12-01':659, '2025-12-02':742, '2025-12-03':824, '2025-12-04':825, '2025-12-05':743, '2025-12-06':433, '2025-12-09':689, '2025-12-10':718, '2025-12-11':692, '2025-12-12':780, '2025-12-13':563, '2025-12-15':792, '2025-12-16':793, '2025-12-17':696, '2025-12-18':694, '2025-12-19':793, '2025-12-20':406, '2025-12-22':708, '2025-12-23':653, '2025-12-24':143, '2025-12-26':443, '2025-12-27':438, '2025-12-29':481, '2025-12-30':540, '2025-12-31':190, '2026-01-02':502, '2026-01-03':416, '2026-01-05':471, '2026-01-06':497, '2026-01-07':525, '2026-01-08':567, '2026-01-09':602, '2026-01-10':384, '2026-01-12':502, '2026-01-13':626, '2026-01-14':689, '2026-01-15':635, '2026-01-16':547, '2026-01-17':375, '2026-01-19':596, '2026-01-20':598, '2026-01-21':588, '2026-01-22':597, '2026-01-23':559, '2026-01-24':403, '2026-01-26':558, '2026-01-27':538, '2026-01-28':543, '2026-01-29':697, '2026-01-30':537, '2026-01-31':461, '2026-02-02':619, '2026-02-03':599, '2026-02-04':704, '2026-02-05':680, '2026-02-06':573, '2026-02-07':354, '2026-02-09':568, '2026-02-10':704, '2026-02-11':564, '2026-02-12':715, '2026-02-13':685, '2026-02-14':457, '2026-02-16':458, '2026-02-17':318, '2026-02-18':663, '2026-02-19':534, '2026-02-20':766, '2026-02-21':502, '2026-02-23':675, '2026-02-24':676, '2026-02-25':745, '2026-02-26':630, '2026-02-27':850, '2026-02-28':437, '2026-03-02':731, '2026-03-03':710, '2026-03-04':741, '2026-03-05':907, '2026-03-06':713, '2026-03-07':589, '2026-03-09':753, '2026-03-10':790, '2026-03-11':786, '2026-03-12':877, '2026-03-13':975, '2026-03-14':499, '2026-03-16':785, '2026-03-17':730, '2026-03-18':680, '2026-03-19':838, '2026-03-20':866, '2026-03-21':502, '2026-03-23':586, '2026-03-24':352, '2026-03-25':759, '2026-03-26':1060, '2026-03-27':898, '2026-03-28':519, '2026-03-30':809, '2026-03-31':935, '2026-04-01':892, '2026-04-02':389, '2026-04-03':433, '2026-04-04':518, '2026-04-06':702, '2026-04-07':769, '2026-04-08':789, '2026-04-09':936, '2026-04-10':1008, '2026-04-11':580, '2026-04-13':1008, '2026-04-14':888, '2026-04-15':1004, '2026-04-16':884, '2026-04-17':944, '2026-04-18':571, '2026-04-20':991, '2026-04-21':856, '2026-04-22':911, '2026-04-23':856, '2026-04-24':968, '2026-04-25':616, '2026-04-27':1025, '2026-04-28':477, '2026-04-29':708, '2026-04-30':1001, '2026-05-01':309, '2026-05-04':846, '2026-05-05':1064, '2026-05-06':1030, '2026-05-07':918, '2026-05-08':1051, '2026-05-09':694, '2026-05-11':1113, '2026-05-12':979, '2026-05-13':1076, '2026-05-14':1075, '2026-05-15':1109, '2026-05-16':726,
+'2026-05-18':1002, '2026-05-19':1053, '2026-05-20':971, '2026-05-21':1049, '2026-05-22':1133, '2026-05-23':578,
+'2026-05-25':436,  '2026-05-26':777,  '2026-05-27':894,  '2026-05-28':943,  '2026-05-29':1105};
+
+// Datos diarios reales de medialunas — extraídos de Datalive · May 2026
+const MED_DIARIAS = {
+  '2026-05-01':209, '2026-05-04':357, '2026-05-05':302, '2026-05-06':412, '2026-05-07':276,
+  '2026-05-08':84,  '2026-05-09':190, '2026-05-11':145, '2026-05-12':6,   '2026-05-13':402,
+  '2026-05-14':212, '2026-05-15':241, '2026-05-16':272,
+  '2026-05-18':361, '2026-05-19':307, '2026-05-20':317, '2026-05-21':315, '2026-05-22':373,
+  '2026-05-23':261, '2026-05-25':205, '2026-05-26':412, '2026-05-27':424, '2026-05-28':408,
+  '2026-05-29':399
+};
+
+// Patrón DOW empanadas — calculado dinámicamente desde 2026-03-01 en adelante
+const EMP_DOW = (() => {
+  const nombres = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const buckets = [[], [], [], [], [], []];
+  Object.entries(EMP_DIARIAS).forEach(([k, v]) => {
+    if (k < '2026-03-01') return;
+    const dow = (new Date(k + 'T12:00:00').getDay() + 6) % 7; // 0=Lun..5=Sáb
+    if (dow < 6) buckets[dow].push(v);
+  });
+  return nombres.map((dia, i) => ({
+    dia,
+    avg: buckets[i].length ? Math.round(buckets[i].reduce((s,v) => s+v, 0) / buckets[i].length) : 0,
+    n: buckets[i].length
+  }));
+})();
+
+// ───────── EMPANADAS ─────────
+
+const EMP_MESES = ['Sep\'25','Oct\'25','Nov\'25','Dic\'25','Ene\'26','Feb\'26','Mar\'26','Abr\'26','May\'26'];
+
+// [nombre, total, [mensual...]]
+const EMPANADAS = [
+  ['Jamón y Queso',          33361, [  619, 3240, 3874, 3633, 3386, 3471, 4766, 5012, 5360]],
+  ['Carne Cuchillo',         18068, [  369, 2245, 2389, 1955, 1876, 1823, 2406, 2421, 2584]],
+  ['Carne Suave',            13321, [  350, 1460, 1563, 1434, 1235, 1401, 1801, 1997, 2080]],
+  ['Cheeseburger',           12553, [  327, 1620, 1611, 1193, 1193, 1122, 1737, 1806, 1944]],
+  ['Pollo',                  11589, [  281, 1507, 1402, 1202, 1039, 1221, 1574, 1613, 1750]],
+  ['Bondiola',                9822, [  234, 1380, 1264, 1026,  827,  930, 1321, 1370, 1470]],
+  ['Carne Picante',           7800, [  206, 1036,  895,  794,  772,  752, 1030, 1190, 1125]],
+  ['Capresse',                7623, [  138,  923,  896,  865,  775,  781,  994, 1094, 1157]],
+  ['Roquefort con Jamón',     7634, [  194,  942,  984,  847,  783,  687,  924, 1054, 1219]],
+  ['Cebolla y Queso',         6013, [  157,  747,  626,  664,  599,  577,  735,  937,  971]],
+  ['Verdura',                 5352, [  127,  624,  609,  621,  510,  533,  756,  785,  787]],
+  ['Humita',                  5286, [  143,  688,  696,  585,  544,  572,  635,  685,  738]],
+  ['Puerro y Hongos',         2912, [   51,  424,  428,  293,  274,  318,  372,  386,  366]],
+  ['Choclo y Calabaza',        936, [   15,  141,  107,  102,   63,  106,  142,  139,  121]],
+  ['Pollo al Curry Vegana',    892, [   18,  128,  127,  123,   64,   87,   94,  120,  131]],
+  ['Carne a la Criolla Veg.',  871, [   22,  112,  122,  101,   73,   95,  103,  115,  128]],
+];
+
+const empTotal = EMPANADAS.reduce((a,p) => a+p[1], 0);
+
+// KPIs empanadas — datos reales de EMP_DIARIAS
+(function(){
+  const keys = Object.keys(EMP_DIARIAS);
+  const vals = Object.values(EMP_DIARIAS);
+
+  // Promedio diario — desde 2026-03-01 en adelante
+  const recentVals = Object.entries(EMP_DIARIAS).filter(([k]) => k >= '2026-03-01').map(([,v]) => v);
+  const avg = Math.round(recentVals.reduce((s,v) => s+v, 0) / recentVals.length);
+  document.getElementById('emp-kpi-avg-diario').textContent = avg.toLocaleString('es-AR');
+  document.getElementById('emp-kpi-avg-diario-sub').textContent = `${recentVals.length} días · Mar–May 2026`;
+
+  // Mejor día histórico
+  const bestKey = keys.reduce((bk, k) => EMP_DIARIAS[k] > EMP_DIARIAS[bk] ? k : bk);
+  const bestDate = new Date(bestKey + 'T12:00:00');
+  const bestLabel = bestDate.toLocaleDateString('es-AR', {day:'2-digit', month:'short', year:'2-digit'});
+  document.getElementById('emp-kpi-best-hist').textContent = EMP_DIARIAS[bestKey].toLocaleString('es-AR');
+  document.getElementById('emp-kpi-best-hist-sub').textContent = bestLabel;
+
+  // Mejor día última semana (últimos 7 días con datos)
+  const weekKeys = keys.slice(-7);
+  const bestWeekKey = weekKeys.reduce((bk, k) => EMP_DIARIAS[k] > EMP_DIARIAS[bk] ? k : bk);
+  const bestWeekDate = new Date(bestWeekKey + 'T12:00:00');
+  const bestWeekLabel = bestWeekDate.toLocaleDateString('es-AR', {day:'2-digit', month:'short', year:'2-digit'});
+  document.getElementById('emp-kpi-best-week').textContent = EMP_DIARIAS[bestWeekKey].toLocaleString('es-AR');
+  document.getElementById('emp-kpi-best-week-sub').textContent = bestWeekLabel;
+})();
+
+// DOW chart empanadas
+new Chart(document.getElementById('chart-emp-dow').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: EMP_DOW.map(d => d.dia),
+    datasets: [{
+      label: 'Empanadas',
+      data: EMP_DOW.map(d => d.avg),
+      backgroundColor: EMP_DOW.map(d => d.avg >= 800 ? '#e8470aBB' : d.avg <= 600 ? '#94a3b8BB' : '#f5a623BB'),
+      borderRadius: 5, borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ~${ctx.parsed.y} emp/día` } }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: { beginAtZero: false, min: 400, ticks: { stepSize: 100 }, grid: { color: '#f3f4f6' } }
+    }
+  }
+});
+
+// ── Tabla semana a semana empanadas — mes en curso (dinámico) ──
+(function() {
+  const FERIADOS_EMP = new Set(['2026-05-01','2026-05-25']);
+  const mesLabel = buildSemanasDynamic('emp-semanas-tbody', EMP_DIARIAS, FERIADOS_EMP, 'emp-semanas-thead');
+  if (mesLabel) {
+    const t = document.getElementById('title-emp-semanas');
+    if(t) t.textContent = 'Empanadas por semana · ' + mesLabel;
+  }
+})();
+
+// Proyección mayo — definida aquí para uso en todas las secciones
+const MAYO_DIAS_DATA = 24; // mes completo
+const MAYO_DIAS_EST  = 24;
+const MAYO_FACTOR    = 1;
+
+const EMP_COLORS = ['#e8470a','#f5a623','#3b82f6','#10b981','#8b5cf6',
+                    '#ef4444','#06b6d4','#84cc16','#f59e0b','#6366f1',
+                    '#14b8a6','#ec4899','#64748b','#a3e635','#c084fc','#fb923c'];
+
+// Ranking bar
+new Chart(document.getElementById('chart-emp-ranking').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: EMPANADAS.map(p => p[0]),
+    datasets: [{
+      label: 'Unidades',
+      data: EMPANADAS.map(p => p[1]),
+      backgroundColor: EMP_COLORS,
+      borderRadius: 4, borderWidth: 0,
+    }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => {
+        const pct = (ctx.parsed.x / empTotal * 100).toFixed(1);
+        return ` ${ctx.parsed.x.toLocaleString('es-AR')} unid · ${pct}% del total`;
+      }}}
+    },
+    scales: {
+      x: { beginAtZero: true, ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v }, grid: { color: '#f3f4f6' } },
+      y: { grid: { display: false }, ticks: { autoSkip: false, font: { size: 11 } } }
+    }
+  }
+});
+
+// Torta top 5 + Otros
+const empTop5 = EMPANADAS.slice(0,5);
+const empOtros = EMPANADAS.slice(5).reduce((a,p) => a+p[1], 0);
+new Chart(document.getElementById('chart-emp-torta').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: [...empTop5.map(p=>p[0]), 'Otros'],
+    datasets: [{
+      data: [...empTop5.map(p=>p[1]), empOtros],
+      backgroundColor: [...EMP_COLORS.slice(0,5), '#cbd5e1'],
+      borderColor: '#fff', borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '55%',
+    plugins: {
+      legend: { position: 'bottom', labels: { usePointStyle: true, padding: 10, font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => {
+        const pct = (ctx.parsed / empTotal * 100).toFixed(1);
+        return ` ${ctx.parsed.toLocaleString('es-AR')} unid · ${pct}%`;
+      }}}
+    }
+  }
+});
+
+// Evolución mensual top 5
+new Chart(document.getElementById('chart-emp-evolucion').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels: EMP_MESES,
+    datasets: EMPANADAS.slice(0,5).map((p,i) => ({
+      label: p[0],
+      data: p[2],
+      borderColor: EMP_COLORS[i],
+      backgroundColor: EMP_COLORS[i] + '22',
+      borderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
+      tension: 0.3, fill: false,
+    }))
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } },
+      tooltip: { mode: 'index', intersect: false,
+        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('es-AR')} unid` }
+      }
+    },
+    scales: {
+      x: { grid: { color: '#f3f4f6' } },
+      y: { beginAtZero: true, ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(1)+'K' : v }, grid: { color: '#f3f4f6' } }
+    }
+  }
+});
+
+// Tabla detalle
+(function() {
+  const tbody = document.getElementById('emp-tbody');
+  function varBadge(curr, prev) {
+    if (!prev || !curr) return '';
+    const pct = ((curr - prev) / prev * 100);
+    const sign = pct >= 0 ? '▲' : '▼';
+    const color = pct >= 0 ? '#10b981' : '#ef4444';
+    return `<span style="font-size:9px;color:${color};display:block;line-height:1.2">${sign}${Math.abs(pct).toFixed(0)}%</span>`;
+  }
+
+  const MAYO_DIAS_OP = 24; // días operativos mayo 2026
+  EMPANADAS.forEach((p, i) => {
+    const pct = (p[1] / empTotal * 100).toFixed(1);
+    const barW = Math.round(p[1] / EMPANADAS[0][1] * 100);
+    const vegana = p[0].includes('Veg') || p[0].includes('Curry');
+    const celdas = p[2].map((v, mi) => {
+      const prev = mi > 0 ? p[2][mi - 1] : null;
+      const badge = varBadge(v, prev);
+      return `<td style="text-align:center;color:${v>0?'var(--text)':'#ccc'}">${v ? v.toLocaleString('es-AR') : '—'}${badge}</td>`;
+    }).join('');
+    const avgMayo = (p[2][8] / MAYO_DIAS_OP).toFixed(1);
+    tbody.innerHTML += `<tr>
+      <td style="color:var(--muted);font-size:12px">${i+1}</td>
+      <td style="font-weight:500">${p[0]}${vegana ? ' <span class="tag baja" style="font-size:9px;padding:1px 5px">vegana</span>' : ''}</td>
+      <td><div class="bar-mini"><div class="bar-fill" style="width:${barW}px;background:${EMP_COLORS[i]}"></div><strong>${p[1].toLocaleString('es-AR')}</strong></div></td>
+      ${celdas}
+      <td style="text-align:center;background:#fff8f3;font-weight:700;color:var(--accent)">${avgMayo}</td>
+      <td><span style="font-weight:700;color:${i<3?'var(--accent)':'var(--muted)'}">${pct}%</span></td>
+    </tr>`;
+  });
+  // Fila de totales por mes
+  const monthTotals = Array.from({length: 9}, (_, mi) => EMPANADAS.reduce((s, p) => s + p[2][mi], 0));
+  const totalCeldas = monthTotals.map((v, mi) => {
+    const prev = mi > 0 ? monthTotals[mi - 1] : null;
+    const badge = varBadge(v, prev);
+    return `<td style="text-align:center;font-weight:700;color:var(--accent)">${v.toLocaleString('es-AR')}${badge}</td>`;
+  }).join('');
+  const totalAvgMayo = (monthTotals[8] / MAYO_DIAS_OP).toFixed(1);
+  tbody.innerHTML += `<tr style="background:#fef9f5;border-top:2px solid var(--accent)">
+    <td style="color:var(--muted)">—</td>
+    <td style="font-weight:700;color:var(--accent)">TOTAL</td>
+    <td><strong style="color:var(--accent)">${empTotal.toLocaleString('es-AR')}</strong></td>
+    ${totalCeldas}
+    <td style="text-align:center;background:#fff8f3;font-weight:700;color:var(--accent)">${totalAvgMayo}</td>
+    <td><span style="font-weight:700;color:var(--accent)">100%</span></td>
+  </tr>`;
+})();
+
+// ───────── MEDIALUNAS ─────────
+
+const MED_MESES = ['Sep\'25','Oct\'25','Nov\'25','Dic\'25','Ene\'26','Feb\'26','Mar\'26','Abr\'26','May\'26'];
+const MED_DATA  = [140, 1463, 1431, 2162, 2212, 2619, 3801, 5231, 6890];
+const MED_TOTAL = MED_DATA.reduce((a,b)=>a+b,0); // 25949
+
+function varBadgeGen(curr, prev) {
+  if (!prev || !curr) return '';
+  const pct = ((curr - prev) / prev * 100);
+  const sign = pct >= 0 ? '▲' : '▼';
+  const color = pct >= 0 ? '#10b981' : '#ef4444';
+  return `<span style="font-size:9px;color:${color};display:block;line-height:1.2">${sign}${Math.abs(pct).toFixed(0)}%</span>`;
+}
+
+// Evolución mensual
+new Chart(document.getElementById('chart-med-evolucion').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: MED_MESES,
+    datasets: [{
+      label: 'Medialunas',
+      data: MED_DATA,
+      backgroundColor: '#f59e0b',
+      borderRadius: 4, borderWidth: 0,
+    }]
+  },
+  plugins: [topLabelsPlugin],
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    layout: { padding: { top: 20 } },
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y.toLocaleString('es-AR')} unid` } }
+    },
+    scales: {
+      x: { grid: { color: '#f3f4f6' } },
+      y: { beginAtZero: true, ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(1)+'K' : v }, grid: { color: '#f3f4f6' } }
+    }
+  }
+});
+
+(function() {
+  const tbody = document.getElementById('med-tbody');
+  // Operating days per month — counted dynamically from EMP_DIARIAS
+  const MED_MONTHS = ['2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05'];
+  const MED_DIAS_OP = MED_MONTHS.map(m => Object.keys(EMP_DIARIAS).filter(k => k.startsWith(m)).length);
+
+  // Row 1: Monthly totals with MoM badges
+  const celdas = MED_DATA.map((v, i) => {
+    const prev = i > 0 ? MED_DATA[i-1] : null;
+    const badge = varBadgeGen(v, prev);
+    return `<td style="text-align:center;color:${v>0?'var(--text)':'#ccc'}">${v.toLocaleString('es-AR')}${badge}</td>`;
+  }).join('');
+  tbody.innerHTML = `<tr>
+    <td style="font-weight:600">Medialunas</td>
+    <td><strong>${MED_TOTAL.toLocaleString('es-AR')}</strong></td>
+    ${celdas}
+  </tr>`;
+
+  // Row 2: Avg/día por mes
+  const avgCeldas = MED_DATA.map((v, i) => {
+    const dias = MED_DIAS_OP[i] || 1;
+    const avg = (v / dias).toFixed(1);
+    return `<td style="text-align:center;color:var(--muted)">${avg}</td>`;
+  }).join('');
+  tbody.innerHTML += `<tr style="background:#fafafa">
+    <td style="font-weight:600;color:var(--muted)">Avg / día</td>
+    <td style="color:var(--muted)">—</td>
+    ${avgCeldas}
+  </tr>`;
+
+  // Row 3: Variación MoM
+  const varCeldas = MED_DATA.map((v, i) => {
+    if (i === 0) return `<td style="text-align:center;color:#ccc">—</td>`;
+    const prev = MED_DATA[i-1];
+    const pct = ((v - prev) / prev * 100);
+    const sign = pct >= 0 ? '▲' : '▼';
+    const color = pct >= 0 ? '#10b981' : '#ef4444';
+    return `<td style="text-align:center;font-weight:700;color:${color}">${sign}${Math.abs(pct).toFixed(0)}%</td>`;
+  }).join('');
+  tbody.innerHTML += `<tr style="background:#f0fdf4">
+    <td style="font-weight:600;color:var(--muted)">Var. MoM</td>
+    <td style="color:var(--muted)">—</td>
+    ${varCeldas}
+  </tr>`;
+})();
+
+
+// ── Tabla semana a semana medialunas — mes en curso (dinámico) ──
+(function() {
+  const FERIADOS_MED = new Set(['2026-05-01','2026-05-25']);
+  const mesLabel = buildSemanasDynamic('med-semanas-tbody', MED_DIARIAS, FERIADOS_MED, 'med-semanas-thead');
+  if (mesLabel) {
+    const t = document.getElementById('title-med-semanas');
+    if(t) t.textContent = 'Medialunas por semana · ' + mesLabel;
+  }
+})();
+
+// ───────── OTROS COMESTIBLES ─────────
+
+const OTROS_MESES = ['Sep\'25','Oct\'25','Nov\'25','Dic\'25','Ene\'26','Feb\'26','Mar\'26','Abr\'26','May\'26'];
+
+// [nombre, total, [sep25,oct25,nov25,dic25,ene26,feb26,mar26,abr26,may26]]
+// Medialunas movidas a su propia pestaña
+const OTROS = [
+  ['Burrito de Ternera',         429, [ 20,  65,  52,  41,  39,  58,  65,  63,  26]],
+  ['Focaccia Muzzarella',        409, [  6,  30,  36,  40,  45,  79,  91,  59,  23]],
+  ['Burrito de Cerdo',           268, [  8,  32,  43,  27,  32,  45,  50,  25,   6]],
+  ['Faina Porción',              262, [  7,  46,  26,  33,  36,  41,  31,  29,  13]],
+  ['Focaccia Napolitana',        129, [  3,   9,  33,  18,   9,  13,  21,  16,   7]],
+  ['Burrito de Pollo',           119, [  6,  16,  12,  10,  19,  14,  18,  21,   3]],
+  ['Burrito Vegetariano',         85, [  6,  18,  19,  11,  11,   6,  11,   2,   1]],
+  ['Sandwich Ternera y Muzza',    77, [  1,  19,  16,   9,   8,   9,   5,   8,   2]],
+  ['Sandw. Individual Ternera',   65, [  3,   9,   8,  12,  10,  12,   5,   4,   2]],
+  ['Focaccia Fugazza',            53, [  0,   8,   6,   5,   5,   7,   5,  13,   4]],
+  ['Sandwich Bondiola y Muzza',   37, [  1,   4,   7,   1,   8,   0,   9,   6,   1]],
+];
+
+const otrosComTotal = OTROS.reduce((a,p) => a+p[1], 0);
+const OTROS_COLORS = ['#78350f','#d97706','#92400e','#b45309','#84cc16',
+                      '#166534','#065f46','#14b8a6','#0e7490','#6366f1','#4338ca'];
+
+new Chart(document.getElementById('chart-otros-ranking').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: OTROS.map(p => p[0]),
+    datasets: [{ label: 'Unidades', data: OTROS.map(p => p[1]),
+      backgroundColor: OTROS_COLORS, borderRadius: 4, borderWidth: 0 }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => {
+        const pct = (ctx.parsed.x / otrosComTotal * 100).toFixed(1);
+        return ` ${ctx.parsed.x.toLocaleString('es-AR')} unid · ${pct}% del total`;
+      }}}
+    },
+    scales: {
+      x: { beginAtZero: true, ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v }, grid: { color: '#f3f4f6' } },
+      y: { grid: { display: false }, ticks: { autoSkip: false, font: { size: 11 } } }
+    }
+  }
+});
+
+const otrosTop4 = OTROS.slice(0,4);
+const otrosResto = OTROS.slice(4).reduce((a,p) => a+p[1], 0);
+
+new Chart(document.getElementById('chart-otros-torta').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: [...otrosTop4.map(p=>p[0]), 'Otros'],
+    datasets: [{ data: [...otrosTop4.map(p=>p[1]), otrosResto],
+      backgroundColor: [...OTROS_COLORS.slice(0,4), '#cbd5e1'], borderColor: '#fff', borderWidth: 2 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '55%',
+    plugins: {
+      legend: { position: 'bottom', labels: { usePointStyle: true, padding: 10, font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => {
+        const pct = (ctx.parsed / otrosComTotal * 100).toFixed(1);
+        return ` ${ctx.parsed.toLocaleString('es-AR')} unid · ${pct}%`;
+      }}}
+    }
+  }
+});
+
+// ── Datos frescos por grupo · extraídos de Datalive Sep'25–May'26 ─────────────
+const SANDW_GRD_DATA = [
+  ['Ternera y Muzza',  [2, 19, 16,  9,  8,  9,  5,  8,  6]],
+  ['Bondiola y Muzza', [1,  4,  7,  1,  8,  0,  9,  6,  5]],
+  ['Pollo y Muzza',    [0,  3,  2,  2,  3,  3,  1,  1,  1]],
+];
+const SANDW_IND_DATA = [
+  ['Ind. Ternera',  [3,  9,  8, 12, 10, 12,  5,  4,  7]],
+  ['Ind. Bondiola', [6,  2,  5,  5,  2,  4,  1,  3,  8]],
+  ['Ind. Pollo',    [2,  3,  3,  3,  1,  3,  3,  1,  1]],
+];
+const FOCACCIA_DATA = [
+  ['Muzzarella', [6, 30, 36, 40, 45, 79, 91, 59, 51]],
+  ['Napolitana', [3,  9, 33, 18,  9, 13, 21, 16, 14]],
+  ['Fugazza',    [0,  8,  6,  5,  5,  7,  5, 13, 14]],
+];
+const FAINA_PANCHO_DATA = [
+  ['Faina Porción',       [7, 45, 25, 33, 33, 34, 26, 27, 32]],
+  ['Pancho de P. Pizza', [14, 35, 33, 51, 33, 58,101, 79, 55]],
+];
+
+// ── Helper: crea grouped bar chart desde OTROS[] (burritos) ───────────────────
+function makeOtrosBarChart(canvasId, title, indices) {
+  const paleta = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#0ea5e9'];
+  const datasets = indices.map((idx, ci) => ({
+    label: OTROS[idx][0],
+    data:  OTROS[idx][2],
+    backgroundColor: paleta[ci % paleta.length],
+    borderRadius: 3, barPercentage: 0.85, categoryPercentage: 0.8,
+  }));
+  new Chart(document.getElementById(canvasId).getContext('2d'), {
+    type: 'bar', plugins: [topLabelsPlugin],
+    data: { labels: OTROS_MESES, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 18 } },
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, padding: 10, font: { size: 11 } } },
+        tooltip: { mode: 'index', intersect: false,
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('es-AR')} unid` }
+        }
+      },
+      scales: { x: { grid: { color: '#f3f4f6' } }, y: { beginAtZero: true, grid: { color: '#f3f4f6' } } }
+    }
+  });
+}
+
+// ── Helper: crea grouped bar chart desde datos directos ───────────────────────
+function makeGroupBarChart(canvasId, dataArr) {
+  const paleta = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#0ea5e9'];
+  const datasets = dataArr.map(([label, data], ci) => ({
+    label, data,
+    backgroundColor: paleta[ci % paleta.length],
+    borderRadius: 3, barPercentage: 0.85, categoryPercentage: 0.8,
+  }));
+  new Chart(document.getElementById(canvasId).getContext('2d'), {
+    type: 'bar', plugins: [topLabelsPlugin],
+    data: { labels: OTROS_MESES, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 18 } },
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, padding: 10, font: { size: 11 } } },
+        tooltip: { mode: 'index', intersect: false,
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('es-AR')} unid` }
+        }
+      },
+      scales: { x: { grid: { color: '#f3f4f6' } }, y: { beginAtZero: true, grid: { color: '#f3f4f6' } } }
+    }
+  });
+}
+
+makeOtrosBarChart('chart-otros-burritos',    'Burritos',  [0, 2, 5, 6]);
+makeGroupBarChart('chart-otros-sandwiches',  SANDW_GRD_DATA);
+makeGroupBarChart('chart-otros-individuales',SANDW_IND_DATA);
+makeGroupBarChart('chart-otros-focaccia',    FOCACCIA_DATA);
+makeGroupBarChart('chart-otros-faina-pancho',FAINA_PANCHO_DATA);
+
+(function() {
+  const tbody = document.getElementById('otros-tbody');
+  OTROS.forEach((p, i) => {
+    const pct = (p[1] / otrosComTotal * 100).toFixed(1);
+    const barW = Math.round(p[1] / OTROS[0][1] * 120);
+    const celdas = p[2].map((v, mi) => {
+      const prev = mi > 0 ? p[2][mi-1] : null;
+      const badge = varBadgeGen(v, prev);
+      return `<td style="text-align:center;color:${v>0?'var(--text)':'#ccc'}">${v ? v.toLocaleString('es-AR') : '—'}${badge}</td>`;
+    }).join('');
+    tbody.innerHTML += `<tr>
+      <td style="color:var(--muted);font-size:12px">${i+1}</td>
+      <td style="font-weight:500">${p[0]}</td>
+      <td><div class="bar-mini"><div class="bar-fill" style="width:${barW}px;background:${OTROS_COLORS[i]}"></div><strong>${p[1].toLocaleString('es-AR')}</strong></div></td>
+      ${celdas}
+      <td><span style="font-weight:700;color:${i<3?'var(--accent)':'var(--muted)'}">${pct}%</span></td>
+    </tr>`;
+  });
+})();
+
+
+// ───────── BEBIDAS ─────────
+
+const BEB_MESES = ['Sep\'25','Oct\'25','Nov\'25','Dic\'25','Ene\'26','Feb\'26','Mar\'26','Abr\'26','May\'26'];
+
+// [nombre, total, [sep25,oct25,nov25,dic25,ene26,feb26,mar26,abr26,may26]]
+const BEBIDAS = [
+  ['Coca Cola 500/600ml',         1597, [  0,   0,   0, 193, 230, 212, 395, 447, 120]],
+  ['Coca Cola 237cc',              819, [  0,   0,   0,   0, 106, 228, 315, 170,   0]],
+  ['Sprite 500/600ml',             700, [  0,   0,   0, 133, 122, 103, 125, 144,  73]],
+  ['Coca Cola Zero 500/600ml',     656, [  0,   0,   0, 134,  80,  98, 121, 172,  51]],
+  ['Agua Benedictino s/gas 600ml', 335, [  0,   0,  46,  57,  43,  34,  57,  77,  21]],
+  ['Fanta 600ml',                  283, [  0,   0,  37,  47,  31,  36,  48,  57,  27]],
+  ['Sprite Zero 500/600ml',        274, [  0,   0,   0,  61,  50,  53,  37,  48,  25]],
+  ['Coca Cola Zero 237cc',         267, [  0,   0,   0,   0,  36,  62, 168,   0,   1]],
+  ['Sprite 237cc',                 234, [  0,   0,   0,   0,  31, 110,  93,   0,   0]],
+  ['Aquarius Pera 500ml',          218, [  0,   0,   0,  20,  39,  40,  54,  52,  13]],
+  ['Aquarius Pomelo 500cc',        199, [  0,   0,   2,   6,  20,  44,  52,  51,  24]],
+  ['Aquarius Manzana 500ml',       197, [  0,   0,   0,  53,  54,  23,  27,  28,  12]],
+  ['Fanta 237cc',                  181, [  0,   0,   0,   0,  18,  61,  92,  10,   0]],
+  ['Pepsi 500ml',                  177, [  7, 119,  51,   0,   0,   0,   0,   0,   0]],
+  ['Coca Cola 1.5/1.75L',          159, [  0,   0,   0,  23,  23,  21,  31,  42,  19]],
+];
+
+const bebTotal = BEBIDAS.reduce((a,p) => a+p[1], 0);
+const bebTotalAbr = BEBIDAS.reduce((a,p) => a + p[2][7], 0); // índice 7 = Abr'26
+document.getElementById('beb-avg-diario').textContent = (bebTotalAbr / 25).toFixed(1);
+const BEB_COLORS = [
+  '#e63946','#ff6b6b','#52b788','#c1121f','#0077b6',
+  '#f4a261','#74c69d','#a8dadc','#95d5b2','#4cc9f0',
+  '#48cae4','#90e0ef','#f77f00','#6c757d','#e63946',
+];
+
+new Chart(document.getElementById('chart-beb-ranking').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: BEBIDAS.map(p => p[0]),
+    datasets: [{ label: 'Unidades', data: BEBIDAS.map(p => p[1]),
+      backgroundColor: BEB_COLORS, borderRadius: 4, borderWidth: 0 }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => {
+        const pct = (ctx.parsed.x / bebTotal * 100).toFixed(1);
+        return ` ${ctx.parsed.x.toLocaleString('es-AR')} unid · ${pct}% del total`;
+      }}}
+    },
+    scales: {
+      x: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+      y: { grid: { display: false }, ticks: { autoSkip: false, font: { size: 11 } } }
+    }
+  }
+});
+
+const bebTop5 = BEBIDAS.slice(0,5);
+const bebResto = BEBIDAS.slice(5).reduce((a,p) => a+p[1], 0);
+new Chart(document.getElementById('chart-beb-torta').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: [...bebTop5.map(p=>p[0]), 'Otros'],
+    datasets: [{ data: [...bebTop5.map(p=>p[1]), bebResto],
+      backgroundColor: ['#e63946','#ff6b6b','#52b788','#c1121f','#0077b6','#cbd5e1'],
+      borderColor: '#fff', borderWidth: 2 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '55%',
+    plugins: {
+      legend: { position: 'bottom', labels: { usePointStyle: true, padding: 10, font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => {
+        const pct = (ctx.parsed / bebTotal * 100).toFixed(1);
+        return ` ${ctx.parsed.toLocaleString('es-AR')} unid · ${pct}%`;
+      }}}
+    }
+  }
+});
+
+new Chart(document.getElementById('chart-beb-evolucion').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels: BEB_MESES,
+    datasets: BEBIDAS.slice(0,5).map((p,i) => ({
+      label: p[0], data: p[2],
+      borderColor: ['#e63946','#ff6b6b','#52b788','#c1121f','#0077b6'][i],
+      backgroundColor: ['#e63946','#ff6b6b','#52b788','#c1121f','#0077b6'][i]+'22',
+      borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: 0.3, fill: false,
+    }))
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } },
+      tooltip: { mode: 'index', intersect: false,
+        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('es-AR')} unid` }
+      }
+    },
+    scales: {
+      x: { grid: { color: '#f3f4f6' } },
+      y: { beginAtZero: true, grid: { color: '#f3f4f6' } }
+    }
+  }
+});
+
+(function() {
+  const tbody = document.getElementById('beb-tbody');
+  BEBIDAS.forEach((p, i) => {
+    const pct = (p[1] / bebTotal * 100).toFixed(1);
+    const barW = Math.round(p[1] / BEBIDAS[0][1] * 100);
+    const celdas = p[2].map((v, mi) => {
+      const prev = mi > 0 ? p[2][mi-1] : null;
+      const badge = varBadgeGen(v, prev);
+      return `<td style="text-align:center;color:${v>0?'var(--text)':'#ccc'}">${v ? v.toLocaleString('es-AR') : '—'}${badge}</td>`;
+    }).join('');
+    tbody.innerHTML += `<tr>
+      <td style="color:var(--muted);font-size:12px">${i+1}</td>
+      <td style="font-weight:500">${p[0]}</td>
+      <td><div class="bar-mini"><div class="bar-fill" style="width:${barW}px;background:${BEB_COLORS[i]}"></div><strong>${p[1].toLocaleString('es-AR')}</strong></div></td>
+      ${celdas}
+      <td><span style="font-weight:700;color:${i<3?'var(--accent)':'var(--muted)'}">${pct}%</span></td>
+    </tr>`;
+  });
+  // Fila de totales mensuales
+  const totMes = BEB_MESES.map((_, mi) => BEBIDAS.reduce((a, p) => a + p[2][mi], 0));
+  const totCeldas = totMes.map(v => `<td style="text-align:center;font-weight:700">${v ? v.toLocaleString('es-AR') : '—'}</td>`).join('');
+  tbody.innerHTML += `<tr style="background:#f9fafb;border-top:2px solid var(--border)">
+    <td colspan="2" style="color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Total</td>
+    <td><strong>${bebTotal.toLocaleString('es-AR')}</strong></td>
+    ${totCeldas}
+    <td></td>
+  </tr>`;
+})();
+
+
+// ───────── RENTABILIDAD ─────────
+
+let rentChartIngreso = null;
+let rentChartScore = null;
+
+function buildRentabilidad() {
+  const tbody = document.getElementById('rent-tbody');
+  tbody.innerHTML = '';
+
+  PRODUCTOS.forEach((p, i) => {
+    const id = 'prod_' + i;
+    tbody.innerHTML += `<tr id="row_${i}">
+      <td style="font-weight:500;white-space:nowrap">${p.nombre}</td>
+      <td style="color:var(--muted)">${p.avg.toFixed(1)}</td>
+      <td><input class="input-price" type="number" id="precio_${i}" value="${p.precio}" oninput="recalc()" min="0" step="100"></td>
+      <td><input class="input-price" type="number" id="costo_${i}" value="${p.costo}" oninput="recalc()" min="0" step="100"></td>
+      <td id="margen_${i}">—</td>
+      <td id="ingreso_${i}">—</td>
+      <td id="score_${i}">—</td>
+      <td id="prio_${i}">—</td>
+    </tr>`;
+  });
+
+  // Altura proporcional a la cantidad de productos para mostrar todas las etiquetas
+  const chartH = PRODUCTOS.length * 30 + 40;
+  ['wrap-rent-ingreso','wrap-rent-score'].forEach(id => {
+    document.getElementById(id).style.height = chartH + 'px';
+  });
+  ['chart-rent-ingreso','chart-rent-score'].forEach(id => {
+    document.getElementById(id).style.maxHeight = 'none';
+  });
+
+  rentChartIngreso = new Chart(document.getElementById('chart-rent-ingreso').getContext('2d'), {
+    type: 'bar',
+    data: { labels: PRODUCTOS.map(p=>p.nombre), datasets: [{ data: [], backgroundColor: '#3b82f6BB', borderRadius:4, borderWidth:0, label:'Ingreso mensual' }] },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ' '+fmtARS(ctx.parsed.x)+'/mes' } } },
+      scales:{
+        x:{ beginAtZero:true, ticks:{ callback: v=>fmtARS(v) }, grid:{color:'#f3f4f6'} },
+        y:{ grid:{display:false}, ticks:{ font:{size:11}, autoSkip:false } }
+      }
+    }
+  });
+
+  rentChartScore = new Chart(document.getElementById('chart-rent-score').getContext('2d'), {
+    type: 'bar',
+    data: { labels: PRODUCTOS.map(p=>p.nombre), datasets: [{ data: [], backgroundColor: '#10b981BB', borderRadius:4, borderWidth:0, label:'Score' }] },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ beginAtZero:true, grid:{color:'#f3f4f6'} },
+        y:{ grid:{display:false}, ticks:{ font:{size:11}, autoSkip:false } }
+      }
+    }
+  });
+
+  recalc();
+}
+
+function recalc() {
+  let totalIngreso = 0;
+  let marginSum = 0, marginCount = 0;
+  let bestMargen = 0, bestNombre = '';
+  const ingresos = [];
+  const scores   = [];
+
+  PRODUCTOS.forEach((p, i) => {
+    const precio = parseFloat(document.getElementById('precio_'+i).value) || 0;
+    const costo  = parseFloat(document.getElementById('costo_'+i).value) || 0;
+    const margen = precio > 0 ? ((precio - costo) / precio * 100) : 0;
+    const mesData = TOTALES_MENSUALES[mesRent] || {};
+    const units   = mesData[p.nombre] || 0;
+    const ingresoMes = precio * units;
+    const score = (margen / 100) * (units / 30);
+
+    ingresos.push(ingresoMes);
+    scores.push(parseFloat(score.toFixed(1)));
+    totalIngreso += ingresoMes;
+
+    if(precio > 0){ marginSum += margen; marginCount++; }
+    if(margen > bestMargen){ bestMargen = margen; bestNombre = p.nombre; }
+
+    const color = margen >= 60 ? '#10b981' : margen >= 40 ? '#f5a623' : '#ef4444';
+    const tag = margen >= 60 ? 'alta' : margen >= 40 ? 'media' : 'baja';
+    const barW = Math.min(100, margen).toFixed(0);
+
+    document.getElementById('margen_'+i).innerHTML = `
+      <div class="margin-bar">
+        <div class="margin-fill" style="width:${barW}px;background:${color}"></div>
+        <span class="margin-val" style="color:${color}">${margen.toFixed(1)}%</span>
+      </div>`;
+    document.getElementById('ingreso_'+i).innerHTML = `<span style="font-weight:600">${fmtARS(ingresoMes)}</span>`;
+    document.getElementById('score_'+i).innerHTML = `<span style="font-weight:600;color:${color}">${score.toFixed(1)}</span>`;
+    document.getElementById('prio_'+i).innerHTML = `<span class="tag ${tag}">${tag.charAt(0).toUpperCase()+tag.slice(1)}</span>`;
+  });
+
+  // KPIs — totalIngreso ya es mensual (basado en abril real)
+  document.getElementById('kpi-ingreso-mensual').textContent  = fmtARS(totalIngreso);
+  document.getElementById('kpi-ventas-reales-val').textContent = fmtARS(totalIngreso);
+  const avgM = marginCount > 0 ? (marginSum/marginCount).toFixed(1) : '—';
+  document.getElementById('kpi-margen-prom').textContent = avgM + '%';
+  document.getElementById('kpi-mejor-margen').textContent = bestNombre || '—';
+  document.getElementById('kpi-mejor-margen-val').textContent = bestMargen.toFixed(1) + '% de margen';
+
+  // Charts
+  if(rentChartIngreso){
+    rentChartIngreso.data.datasets[0].data = ingresos;
+    rentChartIngreso.update('none');
+  }
+  if(rentChartScore){
+    rentChartScore.data.datasets[0].data = scores;
+    rentChartScore.update('none');
+  }
+}
+
+// Build rentabilidad on load
+let mesRent = '2026-04';
+buildRentabilidad();
+
+// ───────── PUNTO DE EQUILIBRIO ─────────
+
+// Referencia: Abril 2026 (mes completo con datos reales)
+const PE_REV_REF   = 29400000;   // ingresos reales Abr 2026
+const PE_CV_REF    = 14179122 + 402340;  // fab + ops Abr 2026
+const PE_CM_RATIO  = (PE_REV_REF - PE_CV_REF) / PE_REV_REF;  // ~50.4%
+const PE_COMANDAS  = 6363;  // comandas reales Abr 2026
+
+let peLineChart    = null;
+let cosFabChart    = null;
+
+const MES_META = {
+  '2025-09': { label:'Sep 2025', sub:'Mes parcial (desde Sep 22)', nota:'⚠ Parcial' },
+  '2025-10': { label:'Oct 2025', sub:'Datos reales Datalive' },
+  '2025-11': { label:'Nov 2025', sub:'Datos reales Datalive' },
+  '2025-12': { label:'Dic 2025', sub:'Datos reales Datalive' },
+  '2026-01': { label:'Ene 2026', sub:'Datos reales Datalive' },
+  '2026-02': { label:'Feb 2026', sub:'Datos reales Datalive' },
+  '2026-03': { label:'Mar 2026', sub:'Datos reales Datalive' },
+  '2026-04': { label:'Abr 2026', sub:'Datos reales Datalive · 6.363 comandas' },
+  '2026-05': { label:'May 2026', sub:'Mes parcial (hasta May 15)', nota:'⚠ Parcial' },
+};
+
+function setMesRent(mesKey) {
+  mesRent = mesKey;
+  const meta = MES_META[mesKey] || { label: mesKey, sub: '' };
+  document.getElementById('kpi-ventas-reales-label').textContent  = `Ventas Reales · ${meta.label}`;
+  document.getElementById('kpi-ventas-reales-sub').textContent    = meta.sub;
+  document.getElementById('chart-rent-ingreso-title').textContent = `Ingreso Mensual Real por Producto (${meta.label})`;
+  document.getElementById('th-ingreso-mes').textContent           = `Ingreso Mensual (${meta.label})`;
+  recalc();
+}
+
+function recalcPE() {
+  const alquiler = parseFloat(document.getElementById('pe-alquiler').value) || 0;
+  const sueldos  = parseFloat(document.getElementById('pe-sueldos').value) || 0;
+  const otros    = parseFloat(document.getElementById('pe-otros').value) || 0;
+  const cf       = alquiler + sueldos + otros;
+
+  // PE = CF / CMR
+  const peRev     = cf > 0 ? cf / PE_CM_RATIO : 0;
+  const peCmdas   = peRev > 0 ? Math.round(peRev / (PE_REV_REF / PE_COMANDAS)) : 0;
+  const msAbs     = PE_REV_REF - peRev - PE_CV_REF;  // ← no: margen de seguridad = Rev - PE
+  const msReal    = PE_REV_REF - peRev;
+  const msPct     = peRev > 0 ? ((msReal / PE_REV_REF) * 100) : 0;
+
+  document.getElementById('pe-kpi-fijos').textContent = fmtARS(cf);
+  document.getElementById('pe-kpi-pe').textContent    = peRev > 0 ? fmtARS(peRev) : '—';
+  document.getElementById('pe-kpi-pe-sub').textContent =
+    peCmdas > 0 ? `≈ ${peCmdas.toLocaleString('es-AR')} comandas/mes` : 'Ingresos mensuales necesarios';
+
+  const msEl   = document.getElementById('pe-kpi-ms');
+  const msSub  = document.getElementById('pe-kpi-ms-sub');
+  const msCard = document.getElementById('pe-ms-card');
+  if (peRev > 0) {
+    msEl.textContent  = (msReal >= 0 ? '+' : '') + fmtARS(msReal);
+    msSub.textContent = (msPct >= 0 ? '+' : '') + msPct.toFixed(1) + '% sobre el PE';
+    msCard.className  = 'kpi-card ' + (msReal >= 0 ? 'green' : '');
+    msEl.style.color  = msReal >= 0 ? '' : 'var(--danger)';
+  }
+
+  // ── Gráfico break-even ──────────────────────────────────────────────────
+  const maxX   = Math.max(PE_REV_REF * 1.25, peRev * 1.5, 35000000);
+  const N      = 30;
+  const xPts   = Array.from({length: N+1}, (_, i) => Math.round(maxX * i / N));
+  const cvRatio    = PE_CV_REF / PE_REV_REF;
+  const ingresosLn = xPts.map(x => x);
+  const costosLn   = xPts.map(x => Math.round(cf + x * cvRatio));
+  const xLabels    = xPts.map(x => fmtARS(x));
+
+  if (!peLineChart) {
+    peLineChart = new Chart(document.getElementById('chart-pe').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: [
+          {
+            label: 'Ingresos',
+            data: ingresosLn,
+            borderColor: '#10b981', backgroundColor: 'transparent',
+            borderWidth: 2, pointRadius: 0, tension: 0
+          },
+          {
+            label: 'Costos Totales',
+            data: costosLn,
+            borderColor: '#ef4444', backgroundColor: 'transparent',
+            borderWidth: 2, pointRadius: 0, tension: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { usePointStyle: true, padding: 12, font: { size: 12 } } },
+          tooltip: {
+            mode: 'index', intersect: false,
+            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtARS(ctx.parsed.y)}` }
+          }
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 8, font: { size: 10 } }, grid: { color: '#f3f4f6' } },
+          y: { beginAtZero: true, ticks: { callback: v => fmtARS(v) }, grid: { color: '#f3f4f6' } }
+        }
+      }
+    });
+  } else {
+    peLineChart.data.labels = xLabels;
+    peLineChart.data.datasets[0].data = ingresosLn;
+    peLineChart.data.datasets[1].data = costosLn;
+    peLineChart.update('none');
+  }
+}
+
+// Inicializar gráfico PE al cargar
+recalcPE();
+
+// ── Gráfico costo de fábrica + operativos ──
+cosFabChart = new Chart(document.getElementById('chart-costos-fab').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: COSTO_FABRICA.map(d => d.mes),
+    datasets: [
+      {
+        label: 'Fábrica',
+        data: COSTO_FABRICA.map(d => d.fab),
+        backgroundColor: '#e8470aBB',
+     
