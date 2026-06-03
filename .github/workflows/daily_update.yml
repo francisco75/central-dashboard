@@ -55,7 +55,6 @@ jobs:
           npx staticrypt@3 dashboard_central_recoleta4.html \
             --password "$DASHBOARD_PASSWORD" \
             --directory docs \
-            --short \
             --template-title "Central Recoleta 4 — Dashboard"
           echo "=== docs/ contenido ==="
           ls -la docs/
