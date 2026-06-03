@@ -162,8 +162,17 @@ async def login(page):
             pass
 
     if not submitted:
-        print("  ↳ Botón específico no encontrado, usando Enter...")
-        await page.press('input[type="password"]', 'Enter')
+        print("  ↳ Botón específico no encontrado, intentando form.submit()...")
+        submitted_via_js = await page.evaluate("""() => {
+            const pwd = document.querySelector('input[type="password"]');
+            if (pwd && pwd.form) { pwd.form.submit(); return true; }
+            const form = document.querySelector('form');
+            if (form) { form.submit(); return true; }
+            return false;
+        }""")
+        if not submitted_via_js:
+            print("  ↳ form.submit() falló, usando Enter...")
+            await page.press('input[type="password"]', 'Enter')
 
     # Esperar navegación fuera del login
     try:
