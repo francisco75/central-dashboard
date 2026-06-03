@@ -54,9 +54,11 @@ jobs:
         run: |
           npx staticrypt@3 dashboard_central_recoleta4.html \
             --password "$DASHBOARD_PASSWORD" \
-            --output docs \
+            --directory docs \
             --short \
             --template-title "Central Recoleta 4 — Dashboard"
+          echo "=== docs/ contenido ==="
+          ls -la docs/
           mv docs/dashboard_central_recoleta4.html docs/index.html
 
       # ── 5. Commit y push ─────────────────────────────────────────
