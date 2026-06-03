@@ -142,15 +142,19 @@ async def login(page):
     await page.wait_for_timeout(500)
     print("  ↳ Credenciales ingresadas")
 
-    # Intentar submit con múltiples estrategias
+    # Intentar submit — primero botones con texto específico, luego form submit
     submitted = False
-    for sel in ['.btnLoginModal', 'button[type="submit"]', 'input[type="submit"]',
-                'button:has-text("Ingresar")', 'button:has-text("Entrar")',
-                'button:has-text("Acceder")', 'button:has-text("Login")', 'button']:
+    text_selectors = [
+        '.btnLoginModal', 'button[type="submit"]', 'input[type="submit"]',
+        'button:has-text("Confirmar")', 'button:has-text("Ingresar")',
+        'button:has-text("Iniciar")', 'button:has-text("Entrar")',
+        'button:has-text("Acceder")', 'button:has-text("Login")',
+    ]
+    for sel in text_selectors:
         try:
             btn = await page.query_selector(sel)
             if btn and await btn.is_visible():
-                await page.evaluate("btn => btn.click()", btn)
+                await btn.click()
                 submitted = True
                 print(f"  ↳ Botón clickeado: {sel}")
                 break
@@ -158,26 +162,28 @@ async def login(page):
             pass
 
     if not submitted:
-        print("  ↳ Botón no encontrado, usando Enter...")
+        print("  ↳ Botón específico no encontrado, usando Enter...")
         await page.press('input[type="password"]', 'Enter')
 
-    # Esperar carga post-login
+    # Esperar navegación fuera del login
     try:
-        await page.wait_for_load_state("networkidle", timeout=20000)
+        await page.wait_for_url(
+            lambda url: 'login_new.php' not in url,
+            timeout=20000
+        )
     except Exception:
         await page.wait_for_timeout(3000)
 
     await screenshot(page, '02_after_login')
 
-    # Verificar login exitoso — fallar explícitamente si no funcionó
+    # Verificar por URL — si sigue en login_new.php el login falló
     current_url = page.url
     page_title  = await page.title()
     print(f"  ↳ Post-login URL: {current_url}")
     print(f"  ↳ Post-login title: {page_title}")
 
-    FAIL_KEYWORDS = ['caducado', 'daducado', 'sesion', 'sesión', 'login', 'ha vencido']
-    if any(k in page_title.lower() for k in FAIL_KEYWORDS):
-        raise RuntimeError(f"❌ Login falló — título: '{page_title}'. Verificar DATALIVE_USER y DATALIVE_PASS en GitHub Secrets.")
+    if 'login_new.php' in current_url or 'caducado' in page_title.lower() or 'daducado' in page_title.lower():
+        raise RuntimeError(f"❌ Login falló — URL: '{current_url}' | título: '{page_title}'. Verificar DATALIVE_USER y DATALIVE_PASS en GitHub Secrets.")
 
     print("✅ Login completado")
 
