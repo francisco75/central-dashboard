@@ -63,7 +63,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add dashboard_central_recoleta4.html docs/index.html
+          git add dashboard_central_recoleta4.html
+          git add docs/index.html 2>/dev/null || echo "docs/index.html no existe, omitiendo"
           git diff --staged --quiet || git commit -m "📊 Datos $(TZ='America/Argentina/Buenos_Aires' date +'%d/%m/%Y %H:%M ART')"
           git push
 
