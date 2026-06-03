@@ -416,8 +416,6 @@ async def main() -> int:
         return 1
 
     # ── Diarios por categoría (solo mes actual) ───────────
-    emp_daily  = {k: v for k, v in daily_totals_by_keywords(parsed, MEDIALUNA_KEYWORDS).items()
-                  if k.startswith(month_pfx)}
     # Nota: 'medialuna' se detecta por keyword
     med_daily  = {k: v for k, v in daily_totals_by_keywords(parsed, MEDIALUNA_KEYWORDS).items()
                   if k.startswith(month_pfx)}
