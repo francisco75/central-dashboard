@@ -52,13 +52,13 @@ jobs:
         env:
           DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
         run: |
-          npx staticrypt@3 dashboard_central_recoleta4.html \
+          echo "y" | npx staticrypt@3 dashboard_central_recoleta4.html \
             --password "$DASHBOARD_PASSWORD" \
             --directory docs \
             --template-title "Central Recoleta 4 — Dashboard"
           echo "=== docs/ contenido ==="
           ls -la docs/
-          mv docs/dashboard_central_recoleta4.html docs/index.html
+          [ -f docs/dashboard_central_recoleta4.html ] && mv docs/dashboard_central_recoleta4.html docs/index.html || echo "archivo ya en docs/index.html"
 
       # ── 5. Commit y push ─────────────────────────────────────────
       - name: Guardar cambios en el repo
