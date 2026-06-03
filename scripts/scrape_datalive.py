@@ -205,7 +205,7 @@ async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str) -> str | Non
     print(f"📊 Fetching ventas detalladas {fecha_desde} → {fecha_hasta}")
     await page.goto(
         f"{BASE_URL}?action=6&subaction=rp_ventas_detalladas_sucursalxdia_nuevo",
-        wait_until="networkidle", timeout=30000
+        wait_until="domcontentloaded", timeout=30000
     )
 
     ajax_html = None
