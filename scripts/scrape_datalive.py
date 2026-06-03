@@ -120,16 +120,17 @@ async def screenshot(page, name):
 
 async def login(page):
     print("🔐 Cargando página de login Datalive...")
-    await page.goto(f"{BASE_URL}?action=0", wait_until="domcontentloaded", timeout=45000)
+    # Usar login_new.php — index.php?action=0 muestra "sesión caducada" y falla
+    login_url = BASE_URL.replace("index.php", "login_new.php")
+    await page.goto(login_url, wait_until="domcontentloaded", timeout=45000)
 
-    # Esperar que el campo usuario esté visible (puede estar en un modal)
+    # Esperar que el campo usuario esté visible
     print("  ↳ Esperando campo #usu...")
     try:
         await page.wait_for_selector('#usu', state='visible', timeout=15000)
         print("  ↳ Campo #usu encontrado")
     except Exception as e:
         print(f"  ↳ #usu no encontrado: {e}")
-        # Intentar con selector genérico
         await page.wait_for_selector('input[type="text"]', state='visible', timeout=10000)
 
     await screenshot(page, '01_login_page')
@@ -145,11 +146,11 @@ async def login(page):
     submitted = False
     for sel in ['.btnLoginModal', 'button[type="submit"]', 'input[type="submit"]',
                 'button:has-text("Ingresar")', 'button:has-text("Entrar")',
-                'button:has-text("Acceder")', 'button:has-text("Login")']:
+                'button:has-text("Acceder")', 'button:has-text("Login")', 'button']:
         try:
             btn = await page.query_selector(sel)
             if btn and await btn.is_visible():
-                await btn.click(force=True)
+                await page.evaluate("btn => btn.click()", btn)
                 submitted = True
                 print(f"  ↳ Botón clickeado: {sel}")
                 break
@@ -160,7 +161,7 @@ async def login(page):
         print("  ↳ Botón no encontrado, usando Enter...")
         await page.press('input[type="password"]', 'Enter')
 
-    # Esperar a que cargue el dashboard (cambio de URL o elemento)
+    # Esperar carga post-login
     try:
         await page.wait_for_load_state("networkidle", timeout=20000)
     except Exception:
@@ -168,11 +169,16 @@ async def login(page):
 
     await screenshot(page, '02_after_login')
 
-    # Verificar login exitoso
+    # Verificar login exitoso — fallar explícitamente si no funcionó
     current_url = page.url
     page_title  = await page.title()
     print(f"  ↳ Post-login URL: {current_url}")
     print(f"  ↳ Post-login title: {page_title}")
+
+    FAIL_KEYWORDS = ['caducado', 'daducado', 'sesion', 'sesión', 'login', 'ha vencido']
+    if any(k in page_title.lower() for k in FAIL_KEYWORDS):
+        raise RuntimeError(f"❌ Login falló — título: '{page_title}'. Verificar DATALIVE_USER y DATALIVE_PASS en GitHub Secrets.")
+
     print("✅ Login completado")
 
 # ── Playwright: Fetch ventas detalladas ───────────────────────────
