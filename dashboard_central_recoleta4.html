@@ -1539,6 +1539,65 @@ PROVEEDORES_ALIMENTOS.forEach((p,i) => {
 });
 
 
+// ───────── INGRESOS TAB ─────────
+
+(function buildIngresos() {
+  // KPIs — último día disponible
+  const lastArr = VENTAS_JUNIO.length > 0 ? VENTAS_JUNIO : VENTAS_MAYO;
+  const last = lastArr[lastArr.length - 1];
+  document.getElementById('ing-kpi-cmd').textContent       = last.comandas.toLocaleString('es-AR');
+  document.getElementById('ing-kpi-cmd-sub').textContent   = last.fecha;
+  document.getElementById('ing-kpi-total').textContent     = fmtARS(last.revenue);
+  document.getElementById('ing-kpi-total-sub').textContent = 'Último día con datos';
+
+  // Canal — sin datos de caja disponibles
+  ['ing-kpi-efec','ing-kpi-dig','ing-kpi-local','ing-kpi-apps'].forEach(id =>
+    document.getElementById(id).textContent = 'Sin datos');
+  ['ing-kpi-efec-pct','ing-kpi-dig-pct','ing-kpi-local-pct','ing-kpi-apps-pct'].forEach(id =>
+    document.getElementById(id).textContent = 'Historial de Caja no disponible');
+
+  // Revenue estimado para meses sin datos diarios (unidades × precio)
+  function estRev(key) {
+    const t = TOTALES_MENSUALES[key];
+    if (!t) return 0;
+    return PRODUCTOS.reduce((s, p) => s + (t[p.nombre] || 0) * p.precio, 0);
+  }
+
+  const MESES = ['2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05'];
+
+  const mesData = MESES.map(key => {
+    if (key === '2026-04') return {
+      rev:  VENTAS_ABRIL.reduce((a,d) => a+d.revenue,  0),
+      cmd:  VENTAS_ABRIL.reduce((a,d) => a+d.comandas, 0),
+      dias: VENTAS_ABRIL.length, tipo: 'real'
+    };
+    if (key === '2026-05') return {
+      rev:  VENTAS_MAYO.reduce((a,d) => a+d.revenue,  0),
+      cmd:  VENTAS_MAYO.reduce((a,d) => a+d.comandas, 0),
+      dias: VENTAS_MAYO.length, tipo: 'real'
+    };
+    return { rev: estRev(key), cmd: null, dias: null, tipo: 'est' };
+  });
+
+  const rows = [
+    { label: 'Revenue Total',      fn: d => fmtARS(d.rev) + (d.tipo==='est' ? '<sup style="color:var(--muted);font-size:9px"> est</sup>' : '') },
+    { label: 'Comandas',           fn: d => d.cmd  != null ? d.cmd.toLocaleString('es-AR') : '—' },
+    { label: 'Días con datos',     fn: d => d.dias != null ? d.dias : '—' },
+    { label: 'Revenue / Día',      fn: d => d.dias ? fmtARS(Math.round(d.rev / d.dias)) : '—' },
+    { label: 'Revenue / Comanda',  fn: d => d.cmd  ? fmtARS(Math.round(d.rev / d.cmd))  : '—' },
+  ];
+
+  const tbody = document.getElementById('ingresos-tbody');
+  rows.forEach(row => {
+    const cells = mesData.map((d, i) => {
+      const hi = (i >= 7) ? ' style="background:#fffbf0"' : '';
+      return `<td${hi}>${row.fn(d)}</td>`;
+    }).join('');
+    tbody.innerHTML += `<tr><td style="font-weight:500;color:var(--muted)">${row.label}</td>${cells}</tr>`;
+  });
+})();
+
+
 // ───────── CHARTS VENTAS ─────────
 
 function dayColors(data) {
