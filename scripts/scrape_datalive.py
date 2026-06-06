@@ -96,6 +96,46 @@ PIZZA_MAP = {
 
 MEDIALUNA_KEYWORDS = ['medialuna']
 
+# ── Precios de carta (sincronizado con PRODUCTOS en el HTML) ──────────
+PRECIO_DASHBOARD = {
+    'Medialunas':               400,
+    'Jamón y Queso':           1000,
+    'Carne Cuchillo':          1000,
+    'Carne Suave':             1000,
+    'Cheeseburger':            1000,
+    'Pollo':                   1000,
+    'Bondiola':                1000,
+    'Carne Picante':           1000,
+    'Capresse':                1000,
+    'Roquefort con Jamón':     1000,
+    'Cebolla y Queso':         1000,
+    'Verdura':                 1000,
+    'Humita':                  1000,
+    'Puerro y Hongos':         1000,
+    'Choclo y Calabaza':       1000,
+    'Pollo al Curry Vegana':   1000,
+    'Carne a la Criolla Veg.': 1000,
+    'Coca Cola 500/600ml':     2300,
+    'Pizza Muzzarella':        8200,
+    'Pizza Mega Muzzarella':  11500,
+}
+
+BEBIDA_MAP = {
+    'coca cola':      'Coca Cola 500/600ml',
+    'coca cola 500':  'Coca Cola 500/600ml',
+    'coca cola 600':  'Coca Cola 500/600ml',
+    'coca 500':       'Coca Cola 500/600ml',
+    'coca 600':       'Coca Cola 500/600ml',
+}
+
+DOW_ES = {0: 'Lun', 1: 'Mar', 2: 'Mié', 3: 'Jue', 4: 'Vie', 5: 'Sáb', 6: 'Dom'}
+
+MONTH_NAMES_ES = {
+    1: 'ENERO', 2: 'FEBRERO', 3: 'MARZO', 4: 'ABRIL',
+    5: 'MAYO', 6: 'JUNIO', 7: 'JULIO', 8: 'AGOSTO',
+    9: 'SEPTIEMBRE', 10: 'OCTUBRE', 11: 'NOVIEMBRE', 12: 'DICIEMBRE',
+}
+
 def dl_to_dashboard(dl_name: str, mapping: dict) -> str | None:
     """Intenta mapear nombre Datalive al nombre del dashboard."""
     key = normalize(dl_name)
@@ -403,6 +443,126 @@ def update_monthly_col(html: str, array_name: str, product_name: str, col_idx: i
     print(f"  ✓ {product_name}[{col_idx}]: {old_val}→{new_value} (total: {new_total})")
     return html
 
+# ── Revenue diario estimado (unidades × precio) ────────────────────
+def compute_daily_revenue(parsed: dict, month_pfx: str) -> dict:
+    """
+    Estima revenue diario multiplicando unidades × precio de carta.
+    Devuelve {'YYYY-MM-DD': revenue_int} solo para días del mes actual.
+    """
+    ALL_MAP = {**EMPANADA_MAP, **PIZZA_MAP, **BEBIDA_MAP}
+    for kw in MEDIALUNA_KEYWORDS:
+        ALL_MAP[kw] = 'Medialunas'
+
+    daily_rev = defaultdict(int)
+    for prod_norm, dias in parsed.items():
+        dash_name = dl_to_dashboard(prod_norm, ALL_MAP)
+        if not dash_name:
+            continue
+        precio = PRECIO_DASHBOARD.get(dash_name, 0)
+        if precio == 0:
+            continue
+        for fecha_iso, units in dias.items():
+            if fecha_iso.startswith(month_pfx):
+                daily_rev[fecha_iso] += units * precio
+    return dict(sorted(daily_rev.items()))
+
+
+def update_ventas_mes(html: str, month_num: int, daily_rev: dict) -> str:
+    """
+    Actualiza const VENTAS_MES = [...] con entradas de revenue diario.
+    Preserva comandas existentes; no sobreescribe entradas con revenue=0.
+    """
+    month_name = MONTH_NAMES_ES[month_num]
+    var_name   = f'VENTAS_{month_name}'
+    pattern    = rf'(const {re.escape(var_name)}\s*=\s*\[)([\s\S]*?)(\];)'
+    match      = re.search(pattern, html)
+    if not match:
+        print(f"  ⚠️  {var_name} no encontrado en el HTML")
+        return html
+
+    # Parsear entradas existentes
+    existing = {}
+    entry_re = re.compile(
+        r"\{\s*fecha:\s*'([^']+)',\s*revenue:\s*(\d+)(?:,\s*comandas:\s*(\d+))?\s*\}"
+    )
+    today = date.today()
+    for m in entry_re.finditer(match.group(2)):
+        fecha_str = m.group(1)           # '01/06 Lun'
+        rev       = int(m.group(2))
+        cmd       = int(m.group(3)) if m.group(3) else None
+        # Reconstruir clave ISO
+        day_s, _ = fecha_str.replace('*', '').split(' ', 1)
+        d_n, mo_n = day_s.split('/')
+        yr = today.year if int(mo_n) <= today.month else today.year - 1
+        key = f'{yr}-{mo_n}-{d_n}'
+        existing[key] = {'fecha': fecha_str, 'revenue': rev, 'comandas': cmd}
+
+    before = len(existing)
+
+    # Merge nuevas entradas
+    for date_iso, revenue in daily_rev.items():
+        if revenue == 0:
+            continue
+        d   = date.fromisoformat(date_iso)
+        fec = f"{d.day:02d}/{d.month:02d} {DOW_ES[d.weekday()]}"
+        if date_iso in existing:
+            existing[date_iso]['revenue'] = revenue   # actualizar revenue, preservar comandas
+        else:
+            existing[date_iso] = {'fecha': fec, 'revenue': revenue, 'comandas': None}
+
+    after = len(existing)
+
+    # Reconstruir array ordenado
+    lines = []
+    for _, e in sorted(existing.items()):
+        fec = e['fecha']
+        rev = e['revenue']
+        cmd = e['comandas']
+        if cmd is not None:
+            lines.append(f"  {{ fecha: '{fec}',  revenue: {rev:>9}, comandas: {cmd} }},")
+        else:
+            lines.append(f"  {{ fecha: '{fec}',  revenue: {rev:>9} }},")
+
+    new_body = '\n' + '\n'.join(lines) + '\n'
+    result = html[:match.start()] + match.group(1) + new_body + match.group(3) + html[match.end():]
+    print(f"  ✓ {var_name}: {before} → {after} entradas (+{after-before} nuevas)")
+    return result
+
+
+def update_dow_promedios(html: str, month_num: int, daily_rev: dict) -> str:
+    """
+    Recalcula DOW_PROMEDIOS_MES con los datos disponibles del mes.
+    Excluye días con revenue muy bajo (feriados < 600K).
+    """
+    month_name = MONTH_NAMES_ES[month_num]
+    var_name   = f'DOW_PROMEDIOS_{month_name}'
+    pattern    = rf'(const {re.escape(var_name)}\s*=\s*\[)([\s\S]*?)(\];)'
+    match      = re.search(pattern, html)
+    if not match:
+        print(f"  ⚠️  {var_name} no encontrado en el HTML")
+        return html
+
+    dow_vals = defaultdict(list)
+    for date_iso, rev in daily_rev.items():
+        if rev < 600000:   # probable feriado
+            continue
+        d = date.fromisoformat(date_iso)
+        if d.weekday() <= 5:   # Lun–Sáb
+            dow_vals[d.weekday()].append(rev)
+
+    DOW_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+    lines = []
+    for i, label in enumerate(DOW_LABELS):
+        vals = dow_vals[i]
+        avg  = round(sum(vals) / len(vals)) if vals else 0
+        lines.append(f"  {{ dia: '{label}',{'':5} avg: {avg} }},")
+
+    new_body = '\n' + '\n'.join(lines) + '\n'
+    result = html[:match.start()] + match.group(1) + new_body + match.group(3) + html[match.end():]
+    print(f"  ✓ {var_name}: actualizado con {sum(len(v) for v in dow_vals.values())} días")
+    return result
+
+
 # ── Main ───────────────────────────────────────────────────────────
 async def main() -> int:
     today       = date.today()
@@ -508,6 +668,14 @@ async def main() -> int:
         if total > 0:
             html = update_monthly_col(html, 'PIZZAS', prod, cur_idx, total)
 
+    # ── Revenue diario estimado y VENTAS_MES ─────────────
+    print("\n--- Actualizando VENTAS mensuales (revenue estimado) ---")
+    daily_rev = compute_daily_revenue(parsed, month_pfx)
+    print(f"  Revenue diario calculado: {len(daily_rev)} días")
+    if daily_rev:
+        html = update_ventas_mes(html, today.month, daily_rev)
+        html = update_dow_promedios(html, today.month, daily_rev)
+
     # ── Guardar ───────────────────────────────────────────
     with open(DASHBOARD, 'w', encoding='utf-8') as f:
         f.write(html)
@@ -517,6 +685,7 @@ async def main() -> int:
     print(f"   Medialunas diarias: {len(med_daily)} días")
     print(f"   Pizzas G diarias: {len(pizza_g_daily)} días")
     print(f"   Pizzas M diarias: {len(pizza_m_daily)} días")
+    print(f"   Revenue diario: {len(daily_rev)} días")
     return 0
 
 
