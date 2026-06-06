@@ -237,16 +237,22 @@ async def login(page):
     print("✅ Login completado")
 
 # ── Playwright: Fetch ventas detalladas ───────────────────────────
-async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str) -> str | None:
+async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str, turno_val: str = '') -> str | None:
     """
     Navega al reporte de ventas detalladas y captura la respuesta AJAX.
     Fechas en formato DD/MM/YYYY.
+    Si turno_val es '', trae todos los turnos (default).
+    Si turno_val es '1' o '2', filtra por turno Mañana o Tarde.
     """
-    print(f"📊 Fetching ventas detalladas {fecha_desde} → {fecha_hasta}")
-    await page.goto(
-        f"{BASE_URL}?action=6&subaction=rp_ventas_detalladas_sucursalxdia_nuevo",
-        wait_until="domcontentloaded", timeout=30000
-    )
+    label = f"turno={turno_val!r}" if turno_val else "todos los turnos"
+    print(f"📊 Fetching ventas detalladas {fecha_desde} → {fecha_hasta} [{label}]")
+
+    # Solo navegar en la primera llamada (sin turno) o si la página no está lista
+    if not turno_val:
+        await page.goto(
+            f"{BASE_URL}?action=6&subaction=rp_ventas_detalladas_sucursalxdia_nuevo",
+            wait_until="domcontentloaded", timeout=30000
+        )
 
     ajax_html = None
 
@@ -262,7 +268,8 @@ async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str) -> str | Non
     page.on("response", on_response)
 
     # Setear fechas
-    await screenshot(page, '03_report_page')
+    if not turno_val:
+        await screenshot(page, '03_report_page')
 
     for attempt in range(3):
         try:
@@ -274,6 +281,36 @@ async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str) -> str | Non
         except Exception as e:
             print(f"  ↳ Reintento fecha ({attempt+1}): {e}")
             await page.wait_for_timeout(2000)
+
+    # Descubrir opciones de turno (solo en la primera llamada sin filtro)
+    if not turno_val:
+        opts = await page.evaluate("""() => {
+            const sels = ['#Turno','#turno','#IdTurno','#TurnoId',
+                          'select[name="Turno"]','select[name="turno"]'];
+            for (const s of sels) {
+                const el = document.querySelector(s);
+                if (el) return {sel: s, opts: Array.from(el.options).map(o=>o.value+':'+o.text.trim())};
+            }
+            return null;
+        }""")
+        print(f"  ↳ Turno selector: {opts}")
+
+    # Setear turno si se especifica
+    if turno_val:
+        turno_set = await page.evaluate(f"""() => {{
+            const sels = ['#Turno', '#turno', '#IdTurno', '#TurnoId',
+                          'select[name="Turno"]', 'select[name="turno"]'];
+            for (const s of sels) {{
+                const el = document.querySelector(s);
+                if (el) {{
+                    el.value = '{turno_val}';
+                    el.dispatchEvent(new Event('change', {{bubbles:true}}));
+                    return s;
+                }}
+            }}
+            return null;
+        }}""")
+        print(f"  ↳ Turno '{turno_val}' seteado via: {turno_set}")
 
     # Disparar el reporte
     try:
@@ -584,6 +621,8 @@ async def main() -> int:
 
         await login(page)
         ajax_html = await fetch_detallado(page, fecha_desde, fecha_hasta)
+        ajax_M    = await fetch_detallado(page, fecha_desde, fecha_hasta, turno_val='1')
+        ajax_T    = await fetch_detallado(page, fecha_desde, fecha_hasta, turno_val='2')
         await browser.close()
 
     if not ajax_html:
@@ -591,7 +630,9 @@ async def main() -> int:
         return 1
 
     # ── Parseo ────────────────────────────────────────────
-    parsed = parse_detallado(ajax_html)
+    parsed   = parse_detallado(ajax_html)
+    parsed_M = parse_detallado(ajax_M) if ajax_M else {}
+    parsed_T = parse_detallado(ajax_T) if ajax_T else {}
     if not parsed:
         print("❌ ABORT: tabla vacía")
         return 1
@@ -637,6 +678,41 @@ async def main() -> int:
                     med_daily_agg[fecha] += units
     med_daily = dict(med_daily_agg)
 
+    # ── Per-shift dailies ─────────────────────────────────
+    emp_daily_M = {}
+    for prod_norm, dias in parsed_M.items():
+        if any(excl in prod_norm for excl in NON_EMP):
+            continue
+        if dl_to_dashboard(prod_norm, EMPANADA_MAP) or 'empanada' in prod_norm:
+            for fecha, units in dias.items():
+                if fecha.startswith(month_pfx):
+                    emp_daily_M[fecha] = emp_daily_M.get(fecha, 0) + units
+
+    emp_daily_T = {}
+    for prod_norm, dias in parsed_T.items():
+        if any(excl in prod_norm for excl in NON_EMP):
+            continue
+        if dl_to_dashboard(prod_norm, EMPANADA_MAP) or 'empanada' in prod_norm:
+            for fecha, units in dias.items():
+                if fecha.startswith(month_pfx):
+                    emp_daily_T[fecha] = emp_daily_T.get(fecha, 0) + units
+
+    med_daily_M = defaultdict(int)
+    for prod_norm, dias in parsed_M.items():
+        if any(kw in prod_norm for kw in MEDIALUNA_KEYWORDS):
+            for fecha, units in dias.items():
+                if fecha.startswith(month_pfx):
+                    med_daily_M[fecha] += units
+    med_daily_M = dict(med_daily_M)
+
+    med_daily_T = defaultdict(int)
+    for prod_norm, dias in parsed_T.items():
+        if any(kw in prod_norm for kw in MEDIALUNA_KEYWORDS):
+            for fecha, units in dias.items():
+                if fecha.startswith(month_pfx):
+                    med_daily_T[fecha] += units
+    med_daily_T = dict(med_daily_T)
+
     # ── Totales mensuales por producto ────────────────────
     emp_monthly   = monthly_totals_mapped(parsed, EMPANADA_MAP)
     pizza_monthly = monthly_totals_mapped(parsed, PIZZA_MAP)
@@ -655,6 +731,10 @@ async def main() -> int:
     html = update_js_dict(html, 'MED_DIARIAS',     med_daily)
     html = update_js_dict(html, 'PIZZA_DIARIAS_G', dict(pizza_g_daily))
     html = update_js_dict(html, 'PIZZA_DIARIAS_M', dict(pizza_m_daily))
+    html = update_js_dict(html, 'EMP_DIARIAS_M',   emp_daily_M)
+    html = update_js_dict(html, 'EMP_DIARIAS_T',   emp_daily_T)
+    html = update_js_dict(html, 'MED_DIARIAS_M',   med_daily_M)
+    html = update_js_dict(html, 'MED_DIARIAS_T',   med_daily_T)
 
     # ── Actualizar totales mensuales EMPANADAS ────────────
     print("\n--- Actualizando EMPANADAS mensuales ---")
@@ -686,6 +766,8 @@ async def main() -> int:
     print(f"   Pizzas G diarias: {len(pizza_g_daily)} días")
     print(f"   Pizzas M diarias: {len(pizza_m_daily)} días")
     print(f"   Revenue diario: {len(daily_rev)} días")
+    print(f"   Empanadas M: {len(emp_daily_M)} días, T: {len(emp_daily_T)} días")
+    print(f"   Medialunas M: {len(med_daily_M)} días, T: {len(med_daily_T)} días")
     return 0
 
 

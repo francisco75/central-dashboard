@@ -1925,7 +1925,7 @@ new Chart(document.getElementById('chart-pizza-torta').getContext('2d'), {
 });
 
 // ── buildSemanasDynamic: tabla semana a semana del mes en curso ──
-function buildSemanasDynamic(tbodyId, diariasObj, feriadosSet, theadId) {
+function buildSemanasDynamic(tbodyId, diariasObj, feriadosSet, theadId, diariasM, diariasT) {
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -1984,7 +1984,15 @@ function buildSemanasDynamic(tbodyId, diariasObj, feriadosSet, theadId) {
       const isFeriado = feriadosSet.has(dateStr);
       const bg = v===maxV ? '#d1fae5' : (v===minV && maxV!==minV ? '#fee2e2' : 'transparent');
       const nota = isFeriado ? '<span style="font-size:9px;color:#f59e0b;display:block">feriado</span>' : '';
-      return `<td style="text-align:center;background:${bg};font-weight:600">${v.toLocaleString('es-AR')}${nota}</td>`;
+      // Shift breakdown
+      const dt2 = new Date(firstMon); dt2.setDate(firstMon.getDate() + wi*7 + dowIdx);
+      const diso = dt2.toISOString().split('T')[0];
+      const mVal = diariasM && diariasM[diso] != null ? diariasM[diso] : null;
+      const tVal = diariasT && diariasT[diso] != null ? diariasT[diso] : null;
+      const shiftLine = (mVal !== null && tVal !== null)
+        ? `<span style="font-size:9px;color:var(--muted);display:block;line-height:1.3">M:${mVal} T:${tVal}</span>`
+        : '';
+      return `<td style="text-align:center;background:${bg};font-weight:600">${v.toLocaleString('es-AR')}${shiftLine}${nota}</td>`;
     }).join('');
     tbody.innerHTML += `<tr>
       <td style="font-weight:600">${dia}</td>
@@ -2162,19 +2170,40 @@ const EMP_DIARIAS = {'2025-09-23':336, '2025-09-24':479, '2025-09-25':605, '2025
 // Datos diarios reales de medialunas — extraídos de Datalive · May 2026
 const MED_DIARIAS = {'2026-05-01':209, '2026-05-04':357, '2026-05-05':302, '2026-05-06':412, '2026-05-07':276, '2026-05-08':84, '2026-05-09':190, '2026-05-11':145, '2026-05-12':6, '2026-05-13':402, '2026-05-14':212, '2026-05-15':241, '2026-05-16':272, '2026-05-18':361, '2026-05-19':307, '2026-05-20':317, '2026-05-21':315, '2026-05-22':373, '2026-05-23':261, '2026-05-25':205, '2026-05-26':412, '2026-05-27':424, '2026-05-28':408, '2026-05-29':399};
 
+const EMP_DIARIAS_M = {};
+const EMP_DIARIAS_T = {};
+const MED_DIARIAS_M = {};
+const MED_DIARIAS_T = {};
+
 // Patrón DOW empanadas — calculado dinámicamente desde 2026-03-01 en adelante
 const EMP_DOW = (() => {
   const nombres = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const buckets = [[], [], [], [], [], []];
+  const buckets  = [[], [], [], [], [], []];
+  const bucketsM = [[], [], [], [], [], []];
+  const bucketsT = [[], [], [], [], [], []];
+  const cutoff = '2026-03-01';
   Object.entries(EMP_DIARIAS).forEach(([k, v]) => {
-    if (k < '2026-03-01') return;
-    const dow = (new Date(k + 'T12:00:00').getDay() + 6) % 7; // 0=Lun..5=Sáb
+    if (k < cutoff) return;
+    const dow = (new Date(k + 'T12:00:00').getDay() + 6) % 7;
     if (dow < 6) buckets[dow].push(v);
   });
+  Object.entries(EMP_DIARIAS_M).forEach(([k, v]) => {
+    if (k < cutoff) return;
+    const dow = (new Date(k + 'T12:00:00').getDay() + 6) % 7;
+    if (dow < 6) bucketsM[dow].push(v);
+  });
+  Object.entries(EMP_DIARIAS_T).forEach(([k, v]) => {
+    if (k < cutoff) return;
+    const dow = (new Date(k + 'T12:00:00').getDay() + 6) % 7;
+    if (dow < 6) bucketsT[dow].push(v);
+  });
+  const avg = arr => arr.length ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length) : 0;
   return nombres.map((dia, i) => ({
     dia,
-    avg: buckets[i].length ? Math.round(buckets[i].reduce((s,v) => s+v, 0) / buckets[i].length) : 0,
-    n: buckets[i].length
+    avg:  avg(buckets[i]),
+    avgM: avg(bucketsM[i]),
+    avgT: avg(bucketsT[i]),
+    n:    buckets[i].length
   }));
 })();
 
@@ -2231,35 +2260,49 @@ const empTotal = EMPANADAS.reduce((a,p) => a+p[1], 0);
   document.getElementById('emp-kpi-best-week-sub').textContent = bestWeekLabel;
 })();
 
-// DOW chart empanadas
-new Chart(document.getElementById('chart-emp-dow').getContext('2d'), {
-  type: 'bar',
-  data: {
-    labels: EMP_DOW.map(d => d.dia),
-    datasets: [{
-      label: 'Empanadas',
-      data: EMP_DOW.map(d => d.avg),
-      backgroundColor: EMP_DOW.map(d => d.avg >= 800 ? '#e8470aBB' : d.avg <= 600 ? '#94a3b8BB' : '#f5a623BB'),
-      borderRadius: 5, borderWidth: 0,
-    }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: { callbacks: { label: ctx => ` ~${ctx.parsed.y} emp/día` } }
+// DOW chart empanadas — agrupado por turno M/T cuando hay datos, total si no
+(function(){
+  const hasShift = Object.keys(EMP_DIARIAS_M).length > 0;
+  const datasets = hasShift ? [
+    {
+      label: 'Mañana',
+      data: EMP_DOW.map(d => d.avgM),
+      backgroundColor: '#f5a623CC',
+      borderRadius: 4, borderWidth: 0,
     },
-    scales: {
-      x: { grid: { display: false } },
-      y: { beginAtZero: false, min: 400, ticks: { stepSize: 100 }, grid: { color: '#f3f4f6' } }
+    {
+      label: 'Tarde',
+      data: EMP_DOW.map(d => d.avgT),
+      backgroundColor: '#e8470aCC',
+      borderRadius: 4, borderWidth: 0,
     }
-  }
-});
+  ] : [{
+    label: 'Empanadas',
+    data: EMP_DOW.map(d => d.avg),
+    backgroundColor: EMP_DOW.map(d => d.avg >= 800 ? '#e8470aBB' : d.avg <= 600 ? '#94a3b8BB' : '#f5a623BB'),
+    borderRadius: 5, borderWidth: 0,
+  }];
+  new Chart(document.getElementById('chart-emp-dow').getContext('2d'), {
+    type: 'bar',
+    data: { labels: EMP_DOW.map(d => d.dia), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: hasShift, labels: { usePointStyle: true, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ` ~${ctx.parsed.y} emp/día (${ctx.dataset.label})` } }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: false, min: 200, ticks: { stepSize: 100 }, grid: { color: '#f3f4f6' } }
+      }
+    }
+  });
+})();
 
 // ── Tabla semana a semana empanadas — mes en curso (dinámico) ──
 (function() {
   const FERIADOS_EMP = new Set(['2026-05-01','2026-05-25']);
-  const mesLabel = buildSemanasDynamic('emp-semanas-tbody', EMP_DIARIAS, FERIADOS_EMP, 'emp-semanas-thead');
+  const mesLabel = buildSemanasDynamic('emp-semanas-tbody', EMP_DIARIAS, FERIADOS_EMP, 'emp-semanas-thead', EMP_DIARIAS_M, EMP_DIARIAS_T);
   if (mesLabel) {
     const t = document.getElementById('title-emp-semanas');
     if(t) t.textContent = 'Empanadas por semana · ' + mesLabel;
@@ -2497,7 +2540,7 @@ new Chart(document.getElementById('chart-med-evolucion').getContext('2d'), {
 // ── Tabla semana a semana medialunas — mes en curso (dinámico) ──
 (function() {
   const FERIADOS_MED = new Set(['2026-05-01','2026-05-25']);
-  const mesLabel = buildSemanasDynamic('med-semanas-tbody', MED_DIARIAS, FERIADOS_MED, 'med-semanas-thead');
+  const mesLabel = buildSemanasDynamic('med-semanas-tbody', MED_DIARIAS, FERIADOS_MED, 'med-semanas-thead', MED_DIARIAS_M, MED_DIARIAS_T);
   if (mesLabel) {
     const t = document.getElementById('title-med-semanas');
     if(t) t.textContent = 'Medialunas por semana · ' + mesLabel;
