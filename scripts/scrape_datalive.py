@@ -247,56 +247,71 @@ async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str, turno_val: s
     label = f"turno={turno_val!r}" if turno_val else "todos los turnos"
     print(f"📊 Fetching ventas detalladas {fecha_desde} → {fecha_hasta} [{label}]")
 
-    # Solo navegar en la primera llamada (sin turno) o si la página no está lista
-    if not turno_val:
-        await page.goto(
-            f"{BASE_URL}?action=6&subaction=rp_ventas_detalladas_sucursalxdia_nuevo",
-            wait_until="domcontentloaded", timeout=30000
-        )
-
     ajax_html = None
+    ajax_url_seen = []
 
     async def on_response(response):
         nonlocal ajax_html
+        # Log any rp_ventas URL for diagnostics
+        if "rp_ventas" in response.url:
+            ajax_url_seen.append(response.url)
+            print(f"  ↳ rp_ventas URL detectada: {response.url}")
         if "rp_ventas_detalladas_sucursalxdia_datos_nuevo" in response.url:
             try:
                 ajax_html = await response.text()
-                print(f"  ↳ AJAX recibido: {len(ajax_html):,} chars")
+                print(f"  ↳ AJAX capturado: {len(ajax_html):,} chars")
             except Exception as e:
                 print(f"  ↳ Error leyendo AJAX: {e}")
 
     page.on("response", on_response)
 
-    # Setear fechas
+    # Siempre navegar fresh — garantiza estado limpio para cada llamada
+    await page.goto(
+        f"{BASE_URL}?action=6&subaction=rp_ventas_detalladas_sucursalxdia_nuevo",
+        wait_until="domcontentloaded", timeout=30000
+    )
+
     if not turno_val:
         await screenshot(page, '03_report_page')
 
+    # Setear fechas y disparar change events para que el JS date-picker actualice su modelo
     for attempt in range(3):
         try:
             await page.wait_for_selector('#FechaDesde', state='visible', timeout=10000)
             await page.fill('#FechaDesde', fecha_desde)
             await page.fill('#FechaHasta', fecha_hasta)
-            print(f"  ↳ Fechas seteadas: {fecha_desde} → {fecha_hasta}")
+            # Forzar eventos change/input para que el picker reconozca el nuevo valor
+            await page.evaluate("""() => {
+                ['#FechaDesde', '#FechaHasta'].forEach(id => {
+                    const el = document.querySelector(id);
+                    if (!el) return;
+                    el.dispatchEvent(new Event('input',  {bubbles: true}));
+                    el.dispatchEvent(new Event('change', {bubbles: true}));
+                });
+            }""")
+            # Verificar que el valor quedó bien
+            val_desde = await page.evaluate("() => document.querySelector('#FechaDesde')?.value || 'N/A'")
+            val_hasta  = await page.evaluate("() => document.querySelector('#FechaHasta')?.value  || 'N/A'")
+            print(f"  ↳ Fechas seteadas: {fecha_desde}→{fecha_hasta} | DOM: {val_desde}→{val_hasta}")
             break
         except Exception as e:
             print(f"  ↳ Reintento fecha ({attempt+1}): {e}")
             await page.wait_for_timeout(2000)
 
-    # Descubrir opciones de turno (solo en la primera llamada sin filtro)
-    if not turno_val:
-        opts = await page.evaluate("""() => {
-            const sels = ['#Turno','#turno','#IdTurno','#TurnoId',
-                          'select[name="Turno"]','select[name="turno"]'];
-            for (const s of sels) {
-                const el = document.querySelector(s);
-                if (el) return {sel: s, opts: Array.from(el.options).map(o=>o.value+':'+o.text.trim())};
-            }
-            return null;
-        }""")
-        print(f"  ↳ Turno selector: {opts}")
+    # Descubrir y loguear opciones de turno (siempre, para diagnóstico)
+    opts = await page.evaluate("""() => {
+        const sels = ['#Turno','#turno','#IdTurno','#TurnoId',
+                      'select[name="Turno"]','select[name="turno"]'];
+        for (const s of sels) {
+            const el = document.querySelector(s);
+            if (el) return {sel: s, opts: Array.from(el.options).map(o=>o.value+':'+o.text.trim())};
+        }
+        return null;
+    }""")
+    print(f"  ↳ Turno selector: {opts}")
 
     # Setear turno si se especifica
-    if turno_val:
+    if turno_val and opts:
         turno_set = await page.evaluate(f"""() => {{
             const sels = ['#Turno', '#turno', '#IdTurno', '#TurnoId',
                           'select[name="Turno"]', 'select[name="turno"]'];
@@ -305,12 +320,12 @@ async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str, turno_val: s
                 if (el) {{
                     el.value = '{turno_val}';
                     el.dispatchEvent(new Event('change', {{bubbles:true}}));
-                    return s;
+                    return s + ':' + el.value;
                 }}
             }}
             return null;
         }}""")
-        print(f"  ↳ Turno '{turno_val}' seteado via: {turno_set}")
+        print(f"  ↳ Turno seteado: {turno_set}")
 
     # Disparar el reporte
     try:
@@ -324,8 +339,8 @@ async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str, turno_val: s
         except Exception as e2:
             print(f"  ↳ Botón falló también: {e2}")
 
-    # Esperar hasta 15s por respuesta AJAX
-    for _ in range(30):
+    # Esperar hasta 20s por respuesta AJAX
+    for _ in range(40):
         if ajax_html:
             break
         await page.wait_for_timeout(500)
@@ -333,7 +348,7 @@ async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str, turno_val: s
     page.remove_listener("response", on_response)
 
     if not ajax_html:
-        print("  ❌ No se recibió respuesta AJAX")
+        print(f"  ❌ No se recibió respuesta AJAX. URLs vistas: {ajax_url_seen}")
     return ajax_html
 
 # ── Parseo de la tabla AJAX ────────────────────────────────────────
@@ -357,10 +372,15 @@ def parse_detallado(html: str) -> dict:
 
     # Cabecera: identificar columnas de fecha
     header_cells = rows[0].find_all(['th', 'td'])
+    # Log de cabecera para diagnóstico
+    header_texts = [c.get_text(strip=True) for c in header_cells[:15]]
+    print(f"  ↳ Cabecera (primeras 15 celdas): {header_texts}")
+
     date_cols = []   # [(col_index, 'YYYY-MM-DD'), ...]
     today = date.today()
     for i, cell in enumerate(header_cells[1:], start=1):
         text = cell.get_text(strip=True)
+        # Formato DD/MM o DD/MM/YY o DD/MM/YYYY
         m = re.match(r'(\d{1,2})/(\d{2})(?:/(\d{2,4}))?', text)
         if m:
             day = int(m.group(1))
@@ -373,6 +393,11 @@ def parse_detallado(html: str) -> dict:
                 if mon > today.month:
                     yr -= 1
             date_cols.append((i, f"{yr}-{mon:02d}-{day:02d}"))
+
+    if date_cols:
+        print(f"  ↳ Columnas fecha: {[d for _,d in date_cols[:5]]} ... ({len(date_cols)} total)")
+    else:
+        print(f"  ↳ ⚠️  No se detectaron columnas de fecha — posible cambio de formato")
 
     result = {}
     for row in rows[1:]:
@@ -600,6 +625,30 @@ def update_dow_promedios(html: str, month_num: int, daily_rev: dict) -> str:
     return result
 
 
+def update_scraper_debug(html: str, info: dict) -> str:
+    """
+    Escribe const SCRAPER_DEBUG = {...}; al HTML para diagnóstico.
+    Si la variable no existe, la inserta antes del primer <script> o donde sea viable.
+    """
+    import json
+    val = json.dumps(info, ensure_ascii=False, indent=None, separators=(',', ':'))
+    new_block = f"const SCRAPER_DEBUG = {val};"
+    pattern = r'const SCRAPER_DEBUG\s*=\s*\{[\s\S]*?\};'
+    if re.search(pattern, html):
+        html = re.sub(pattern, new_block, html)
+    else:
+        # Insertar antes del primer closing de la primera sección de constantes JS
+        # Buscar la línea con EMP_DIARIAS_M para insertar cerca
+        insert_after = 'const EMP_DIARIAS_T = {};'
+        if insert_after in html:
+            html = html.replace(insert_after, insert_after + f'\n{new_block}', 1)
+        else:
+            # Último recurso: insertar al final del primer bloque <script>
+            html = html.replace('</script>', f'{new_block}\n</script>', 1)
+    print(f"  ✓ SCRAPER_DEBUG escrito: {info}")
+    return html
+
+
 # ── Main ───────────────────────────────────────────────────────────
 async def main() -> int:
     today       = date.today()
@@ -633,6 +682,21 @@ async def main() -> int:
     parsed   = parse_detallado(ajax_html)
     parsed_M = parse_detallado(ajax_M) if ajax_M else {}
     parsed_T = parse_detallado(ajax_T) if ajax_T else {}
+
+    # Muestra de productos parseados para diagnóstico
+    sample_prods = list(parsed.keys())[:8]
+    # Muestra de fechas encontradas en el primer producto
+    sample_dates = []
+    for prod_norm, dias in parsed.items():
+        if dias:
+            sample_dates = sorted(dias.keys())[:5]
+            break
+
+    print(f"\n--- Diagnóstico parseo ---")
+    print(f"  Productos: {len(parsed)} | M: {len(parsed_M)} | T: {len(parsed_T)}")
+    print(f"  Sample prods: {sample_prods}")
+    print(f"  Sample fechas: {sample_dates}")
+
     if not parsed:
         print("❌ ABORT: tabla vacía")
         return 1
@@ -755,6 +819,27 @@ async def main() -> int:
     if daily_rev:
         html = update_ventas_mes(html, today.month, daily_rev)
         html = update_dow_promedios(html, today.month, daily_rev)
+
+    # ── Debug info visible en el HTML ────────────────────
+    debug_info = {
+        'date': str(today),
+        'period': f'{fecha_desde}→{fecha_hasta}',
+        'ajaxOk': bool(ajax_html),
+        'ajaxMOk': bool(ajax_M),
+        'ajaxTOk': bool(ajax_T),
+        'productsAll': len(parsed),
+        'productsM': len(parsed_M),
+        'productsT': len(parsed_T),
+        'empDailyDays': len(emp_daily),
+        'medDailyDays': len(med_daily),
+        'revDays': len(daily_rev),
+        'empDailyM': len(emp_daily_M),
+        'empDailyT': len(emp_daily_T),
+        'sampleProds': sample_prods,
+        'sampleDates': sample_dates,
+        'sampleEmpDates': sorted(emp_daily.keys())[:5],
+    }
+    html = update_scraper_debug(html, debug_info)
 
     # ── Guardar ───────────────────────────────────────────
     with open(DASHBOARD, 'w', encoding='utf-8') as f:
