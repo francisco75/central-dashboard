@@ -1685,13 +1685,13 @@ function setMes(mes, btn) {
   const best   = ventas.reduce((a,d) => d.revenue > a.revenue ? d : a, ventas[0]);
   const prod1  = PRODUCTOS[0];
   const label  = mes === 'junio' ? 'Ventas · Junio 2026' : (mes === 'mayo' ? 'Ventas · Mayo 2026' : 'Ventas · Abril 2026');
-  const diasSub= mes === 'junio' ? '1 día disponible · datos reales Datalive' : (mes === 'mayo' ? '25 días disponibles · datos reales Datalive' : '26 días hábiles · datos reales Datalive');
+  const diasSub= `${ventas.length} día${ventas.length !== 1 ? 's' : ''} disponibles · datos reales Datalive`;
 
   document.getElementById('kpi-v-label').textContent   = label;
   document.getElementById('kpi-v-total').textContent   = fmtARS(total);
   document.getElementById('kpi-v-dias').textContent    = diasSub;
   document.getElementById('kpi-v-avg').textContent     = fmtARS(avgD);
-  document.getElementById('kpi-v-avg-sub').textContent = mes === 'junio' ? '1 día disponible' : (mes === 'mayo' ? '23 días hábiles (excl. feriados)' : '245 cmd/día promedio');
+  document.getElementById('kpi-v-avg-sub').textContent = mes === 'junio' ? `${normal.length} día${normal.length !== 1 ? 's' : ''} hábiles (excl. feriados)` : (mes === 'mayo' ? '23 días hábiles (excl. feriados)' : '245 cmd/día promedio');
   document.getElementById('kpi-v-mejor').textContent   = fmtARS(best.revenue);
   document.getElementById('kpi-v-mejor-sub').textContent = best.fecha;
   document.getElementById('kpi-v-prod1').textContent   = prod1.nombre;
