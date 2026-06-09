@@ -1551,7 +1551,7 @@ PROVEEDORES_ALIMENTOS.forEach((p,i) => {
   // KPIs — último día disponible
   const lastArr = VENTAS_JUNIO.length > 0 ? VENTAS_JUNIO : VENTAS_MAYO;
   const last = lastArr[lastArr.length - 1];
-  document.getElementById('ing-kpi-cmd').textContent       = last.comandas.toLocaleString('es-AR');
+  document.getElementById('ing-kpi-cmd').textContent       = last.comandas != null ? last.comandas.toLocaleString('es-AR') : '—';
   document.getElementById('ing-kpi-cmd-sub').textContent   = last.fecha;
   document.getElementById('ing-kpi-total').textContent     = fmtARS(last.revenue);
   document.getElementById('ing-kpi-total-sub').textContent = 'Último día con datos';
