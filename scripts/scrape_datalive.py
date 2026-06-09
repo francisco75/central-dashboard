@@ -10,11 +10,16 @@ Actualiza en el HTML:
 
 import os
 import re
+import sys
 import asyncio
 import unicodedata
 from datetime import date
 from collections import defaultdict
 from playwright.async_api import async_playwright
+
+# Forzar UTF-8 en stdout para que emojis/flechas no fallen en terminales Windows
+if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 # ── Config ────────────────────────────────────────────────────────
 BASE_URL   = "https://vm4.zona.dlsrvz.com/central/sistema/prd/index.php"
@@ -239,117 +244,37 @@ async def login(page):
 # ── Playwright: Fetch ventas detalladas ───────────────────────────
 async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str, turno_val: str = '') -> str | None:
     """
-    Navega al reporte de ventas detalladas y captura la respuesta AJAX.
-    Fechas en formato DD/MM/YYYY.
-    Si turno_val es '', trae todos los turnos (default).
-    Si turno_val es '1' o '2', filtra por turno Mañana o Tarde.
+    Navega directo a la URL del endpoint AJAX con las fechas correctas.
+    Evita el formulario (cuyo #FechaDesde es readonly y no acepta fill).
+    Fechas en formato DD/MM/YYYY. turno_val: '' = todos, 'M'/'T' = turno.
     """
+    from urllib.parse import quote
     label = f"turno={turno_val!r}" if turno_val else "todos los turnos"
-    print(f"📊 Fetching ventas detalladas {fecha_desde} → {fecha_hasta} [{label}]")
+    print(f"📊 Fetching detallado {fecha_desde} → {fecha_hasta} [{label}]")
 
-    ajax_html = None
-    ajax_url_seen = []
-
-    async def on_response(response):
-        nonlocal ajax_html
-        # Log any rp_ventas URL for diagnostics
-        if "rp_ventas" in response.url:
-            ajax_url_seen.append(response.url)
-            print(f"  ↳ rp_ventas URL detectada: {response.url}")
-        if "rp_ventas_detalladas_sucursalxdia_datos_nuevo" in response.url:
-            try:
-                ajax_html = await response.text()
-                print(f"  ↳ AJAX capturado: {len(ajax_html):,} chars")
-            except Exception as e:
-                print(f"  ↳ Error leyendo AJAX: {e}")
-
-    page.on("response", on_response)
-
-    # Siempre navegar fresh — garantiza estado limpio para cada llamada
-    await page.goto(
-        f"{BASE_URL}?action=6&subaction=rp_ventas_detalladas_sucursalxdia_nuevo",
-        wait_until="domcontentloaded", timeout=30000
+    base_ajx = "https://vm4.zona.dlsrvz.com/central/sistema/prd/RP"
+    fd = quote(fecha_desde, safe='')
+    fh = quote(fecha_hasta, safe='')
+    url = (
+        f"{base_ajx}/rp_ventas_detalladas_sucursalxdia_datos_nuevo.php"
+        f"?FechaDesde={fd}&FechaHasta={fh}"
+        f"&cod_suc_reporte=4325&tipo_venta=1&tipo_comanda=&filtro_turno={turno_val}"
+        f"&tipo_origen=&cod_prod_reporte=0&esPromo=&cod_rubro_reporte=&cod_promociones=0"
+        f"&lun=checked&mar=checked&mie=checked&jue=checked&vie=checked"
+        f"&sab=checked&dom=checked&detalle_dias=checked&archivados="
     )
+    print(f"  ↳ URL: ...FechaDesde={fecha_desde}&FechaHasta={fecha_hasta}&filtro_turno={turno_val!r}")
 
-    if not turno_val:
-        await screenshot(page, '03_report_page')
-
-    # Setear fechas y disparar change events para que el JS date-picker actualice su modelo
-    for attempt in range(3):
-        try:
-            await page.wait_for_selector('#FechaDesde', state='visible', timeout=10000)
-            await page.fill('#FechaDesde', fecha_desde)
-            await page.fill('#FechaHasta', fecha_hasta)
-            # Forzar eventos change/input para que el picker reconozca el nuevo valor
-            await page.evaluate("""() => {
-                ['#FechaDesde', '#FechaHasta'].forEach(id => {
-                    const el = document.querySelector(id);
-                    if (!el) return;
-                    el.dispatchEvent(new Event('input',  {bubbles: true}));
-                    el.dispatchEvent(new Event('change', {bubbles: true}));
-                });
-            }""")
-            # Verificar que el valor quedó bien
-            val_desde = await page.evaluate("() => document.querySelector('#FechaDesde')?.value || 'N/A'")
-            val_hasta  = await page.evaluate("() => document.querySelector('#FechaHasta')?.value  || 'N/A'")
-            print(f"  ↳ Fechas seteadas: {fecha_desde}→{fecha_hasta} | DOM: {val_desde}→{val_hasta}")
-            break
-        except Exception as e:
-            print(f"  ↳ Reintento fecha ({attempt+1}): {e}")
-            await page.wait_for_timeout(2000)
-
-    # Descubrir y loguear opciones de turno (siempre, para diagnóstico)
-    opts = await page.evaluate("""() => {
-        const sels = ['#Turno','#turno','#IdTurno','#TurnoId',
-                      'select[name="Turno"]','select[name="turno"]'];
-        for (const s of sels) {
-            const el = document.querySelector(s);
-            if (el) return {sel: s, opts: Array.from(el.options).map(o=>o.value+':'+o.text.trim())};
-        }
-        return null;
-    }""")
-    print(f"  ↳ Turno selector: {opts}")
-
-    # Setear turno si se especifica
-    if turno_val and opts:
-        turno_set = await page.evaluate(f"""() => {{
-            const sels = ['#Turno', '#turno', '#IdTurno', '#TurnoId',
-                          'select[name="Turno"]', 'select[name="turno"]'];
-            for (const s of sels) {{
-                const el = document.querySelector(s);
-                if (el) {{
-                    el.value = '{turno_val}';
-                    el.dispatchEvent(new Event('change', {{bubbles:true}}));
-                    return s + ':' + el.value;
-                }}
-            }}
-            return null;
-        }}""")
-        print(f"  ↳ Turno seteado: {turno_set}")
-
-    # Disparar el reporte
     try:
-        await page.evaluate("actualizar_reporte()")
-        print("  ↳ actualizar_reporte() ejecutado")
-    except Exception as e1:
-        print(f"  ↳ actualizar_reporte() falló: {e1}")
-        try:
-            await page.click('button:has-text("Ver reporte")', timeout=5000)
-            print("  ↳ Botón 'Ver reporte' clickeado")
-        except Exception as e2:
-            print(f"  ↳ Botón falló también: {e2}")
-
-    # Esperar hasta 20s por respuesta AJAX
-    for _ in range(40):
-        if ajax_html:
-            break
-        await page.wait_for_timeout(500)
-
-    page.remove_listener("response", on_response)
-
-    if not ajax_html:
-        print(f"  ❌ No se recibió respuesta AJAX. URLs vistas: {ajax_url_seen}")
-    return ajax_html
+        await page.goto(url, wait_until="domcontentloaded", timeout=45000)
+        content = await page.content()
+        print(f"  ↳ Respuesta: {len(content):,} chars")
+        if not turno_val:
+            await screenshot(page, '03_ajax_response')
+        return content
+    except Exception as e:
+        print(f"  ❌ Error en goto AJAX: {e}")
+        return None
 
 # ── Parseo de la tabla AJAX ────────────────────────────────────────
 def parse_detallado(html: str) -> dict:
@@ -370,18 +295,28 @@ def parse_detallado(html: str) -> dict:
     if len(rows) < 2:
         return {}
 
-    # Cabecera: identificar columnas de fecha
+    # Cabecera: identificar columnas de fecha y columna de nombre de producto
     header_cells = rows[0].find_all(['th', 'td'])
-    # Log de cabecera para diagnóstico
     header_texts = [c.get_text(strip=True) for c in header_cells[:15]]
     print(f"  ↳ Cabecera (primeras 15 celdas): {header_texts}")
 
+    # Encontrar la columna "Producto" dinámicamente (puede tener IDProducto antes)
+    name_col = 0  # fallback
+    for idx, cell in enumerate(header_cells):
+        txt = cell.get_text(strip=True).lower()
+        if txt in ('producto', 'descripcion', 'descripción', 'nombre', 'prod'):
+            name_col = idx
+            break
+    print(f"  ↳ Columna nombre de producto: idx={name_col} ('{header_cells[name_col].get_text(strip=True)}')")
+
     date_cols = []   # [(col_index, 'YYYY-MM-DD'), ...]
     today = date.today()
-    for i, cell in enumerate(header_cells[1:], start=1):
+    for i, cell in enumerate(header_cells):
+        if i <= name_col:
+            continue   # saltar ID y nombre
         text = cell.get_text(strip=True)
-        # Formato DD/MM o DD/MM/YY o DD/MM/YYYY
-        m = re.match(r'(\d{1,2})/(\d{2})(?:/(\d{2,4}))?', text)
+        # Acepta formatos: DD/MM · DD/MM/YY · DD/MM/YYYY · "lun DD/MM" · "dom DD/MM" etc.
+        m = re.search(r'(\d{1,2})/(\d{2})(?:/(\d{2,4}))?', text)
         if m:
             day = int(m.group(1))
             mon = int(m.group(2))
@@ -402,9 +337,9 @@ def parse_detallado(html: str) -> dict:
     result = {}
     for row in rows[1:]:
         cells = row.find_all(['td', 'th'])
-        if not cells:
+        if not cells or len(cells) <= name_col:
             continue
-        name_raw = cells[0].get_text(strip=True)
+        name_raw = cells[name_col].get_text(strip=True)
         name_norm = normalize(name_raw)
         if not name_norm or name_norm in ('total', 'subtotal', 'totales'):
             continue
