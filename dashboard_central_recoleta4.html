@@ -242,8 +242,7 @@
 </head>
 <body>
 
-<!-- HEADER + TABS sticky wrapper -->
-<div style="position:sticky;top:0;z-index:200">
+<!-- HEADER -->
 <div class="header">
   <div class="header-left">
     <h1>🍕 Central Recoleta 4 · Dashboard de Rentabilidad</h1>
@@ -252,7 +251,8 @@
   <span class="header-badge">Análisis Operativo</span>
 </div>
 
-<!-- TABS -->
+<!-- TABS (sticky) -->
+<div style="position:sticky;top:0;z-index:200">
 <div class="tabs">
   <div class="tab active" onclick="showTab('ventas',this)">📊 Ventas</div>
   <div class="tab" onclick="showTab('ingresos',this)">💵 Ingresos</div>
@@ -265,7 +265,7 @@
   <div class="tab" onclick="showTab('rentabilidad',this)">📈 Rentabilidad</div>
   <div class="tab" onclick="showTab('campanas',this)">🎯 Campañas</div>
 </div>
-</div><!-- /sticky wrapper -->
+</div><!-- /sticky tabs -->
 
 <div class="main">
 
@@ -343,11 +343,27 @@
   <!-- ══════════════════════════════════════════ -->
   <div class="section active" id="tab-ventas">
 
-    <!-- Selector de mes -->
-    <div class="mes-selector">
-      <button class="mes-btn active" onclick="setMes('abril',this)">📅 Abril 2026 (completo)</button>
-      <button class="mes-btn" onclick="setMes('mayo',this)">📅 Mayo 2026 <span style="font-size:10px;opacity:.7">25 días</span></button>
-      <button class="mes-btn" onclick="setMes('junio',this)">📅 Junio 2026 <span id="junio-dias-span" style="font-size:10px;opacity:.7">1 día</span></button>
+    <!-- Gráfico evolución mensual -->
+    <div class="chart-card" style="margin-bottom:var(--gap)">
+      <div class="chart-title">Evolución de Ventas Mensuales</div>
+      <div class="chart-sub" id="ventas-mensual-sub">Sep 2025 – Jun 2026 · revenue estimado (gris) y real (azul)</div>
+      <div style="position:relative;height:200px">
+        <canvas id="chart-ventas-mensuales"></canvas>
+      </div>
+    </div>
+
+    <!-- Selector de mes — todos los meses -->
+    <div class="mes-selector" id="ventas-mes-selector">
+      <button class="mes-btn" onclick="setMes('2025-09',this)">Sep '25</button>
+      <button class="mes-btn" onclick="setMes('2025-10',this)">Oct '25</button>
+      <button class="mes-btn" onclick="setMes('2025-11',this)">Nov '25</button>
+      <button class="mes-btn" onclick="setMes('2025-12',this)">Dic '25</button>
+      <button class="mes-btn" onclick="setMes('2026-01',this)">Ene '26</button>
+      <button class="mes-btn" onclick="setMes('2026-02',this)">Feb '26</button>
+      <button class="mes-btn" onclick="setMes('2026-03',this)">Mar '26</button>
+      <button class="mes-btn active" onclick="setMes('2026-04',this)">Abr '26 <span style="font-size:10px;opacity:.7">completo</span></button>
+      <button class="mes-btn" onclick="setMes('2026-05',this)">May '26 <span style="font-size:10px;opacity:.7">25 días</span></button>
+      <button class="mes-btn" onclick="setMes('2026-06',this)">Jun '26 <span id="junio-dias-span" style="font-size:10px;opacity:.7">7 días</span></button>
     </div>
 
     <!-- KPIs -->
@@ -1448,6 +1464,27 @@ const TOTALES_MENSUALES = {
   '2026-05': { 'Medialunas':3108, 'Jamón y Queso':5360, 'Carne Cuchillo':2584, 'Carne Suave':2080, 'Cheeseburger':1944, 'Pollo':1750, 'Bondiola':1470, 'Roquefort con Jamón':1219, 'Carne Picante':1125, 'Capresse':1157, 'Cebolla y Queso':971, 'Verdura':787, 'Humita':738, 'Puerro y Hongos':366, 'Coca Cola 500/600ml':279, 'Pizza Muzzarella':89, 'Carne a la Criolla Veg.':128, 'Choclo y Calabaza':121, 'Pollo al Curry Vegana':131, 'Pizza Mega Muzzarella':26 },
 };
 
+// ───────── VENTAS MENSUALES DATA (todos los meses) ─────────
+
+function _estRev(key) {
+  const t = TOTALES_MENSUALES[key];
+  if (!t) return 0;
+  return PRODUCTOS.reduce((s, p) => s + (t[p.nombre] || 0) * p.precio, 0);
+}
+
+const VENTAS_MENSUALES_DATA = [
+  { key:'2025-09', label:"Sep '25", labelLong:"Sep 2025",  rev: _estRev('2025-09'), tipo:'est' },
+  { key:'2025-10', label:"Oct '25", labelLong:"Oct 2025",  rev: _estRev('2025-10'), tipo:'est' },
+  { key:'2025-11', label:"Nov '25", labelLong:"Nov 2025",  rev: _estRev('2025-11'), tipo:'est' },
+  { key:'2025-12', label:"Dic '25", labelLong:"Dic 2025",  rev: _estRev('2025-12'), tipo:'est' },
+  { key:'2026-01', label:"Ene '26", labelLong:"Ene 2026",  rev: _estRev('2026-01'), tipo:'est' },
+  { key:'2026-02', label:"Feb '26", labelLong:"Feb 2026",  rev: _estRev('2026-02'), tipo:'est' },
+  { key:'2026-03', label:"Mar '26", labelLong:"Mar 2026",  rev: _estRev('2026-03'), tipo:'est' },
+  { key:'2026-04', label:"Abr '26", labelLong:"Abril 2026", rev: VENTAS_ABRIL.reduce((a,d)=>a+d.revenue,0), tipo:'real', ventas: VENTAS_ABRIL, dow: DOW_PROMEDIOS },
+  { key:'2026-05', label:"May '26", labelLong:"Mayo 2026",  rev: VENTAS_MAYO.reduce((a,d)=>a+d.revenue,0),  tipo:'real', ventas: VENTAS_MAYO, dow: DOW_PROMEDIOS_MAYO },
+  { key:'2026-06', label:"Jun '26", labelLong:"Junio 2026", rev: VENTAS_JUNIO.reduce((a,d)=>a+d.revenue,0), tipo:'parcial', ventas: VENTAS_JUNIO, dow: DOW_PROMEDIOS_JUNIO },
+];
+
 // ───────── HELPERS ─────────
 
 const fmtARS = v => {
@@ -1609,6 +1646,92 @@ PROVEEDORES_ALIMENTOS.forEach((p,i) => {
 })();
 
 
+// ───────── CHART VENTAS MENSUALES (evolución histórica) ─────────
+
+const _momColors = VENTAS_MENSUALES_DATA.map((m, i) => {
+  if (m.key === '2026-04') return '#e8470a'; // mes activo inicial
+  return m.tipo === 'real' ? '#3b82f6AA' : m.tipo === 'parcial' ? '#f5a623AA' : '#9ca3afAA';
+});
+
+const _barLabels = {
+  id: 'barValueLabels',
+  afterDatasetsDraw(chart) {
+    const ctx2 = chart.ctx;
+    const ds = chart.data.datasets[0];
+    chart.getDatasetMeta(0).data.forEach((bar, i) => {
+      const v = ds.data[i];
+      if (!v) return;
+      const { x } = bar.getCenterPoint();
+      const top = bar.y;
+      // importe
+      ctx2.save();
+      ctx2.textAlign = 'center';
+      ctx2.font = 'bold 10px sans-serif';
+      ctx2.fillStyle = '#374151';
+      ctx2.fillText(fmtARS(v), x, top - 18);
+      // variación MoM
+      if (i > 0) {
+        const prev = ds.data[i - 1];
+        if (prev > 0) {
+          const pct = ((v - prev) / prev * 100);
+          ctx2.font = '9px sans-serif';
+          ctx2.fillStyle = pct >= 0 ? '#10b981' : '#ef4444';
+          ctx2.fillText((pct >= 0 ? '▲' : '▼') + Math.abs(pct).toFixed(1) + '%', x, top - 6);
+        }
+      }
+      ctx2.restore();
+    });
+  }
+};
+
+const chartVentasMensuales = new Chart(document.getElementById('chart-ventas-mensuales').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: VENTAS_MENSUALES_DATA.map(m => m.label),
+    datasets: [{
+      data: VENTAS_MENSUALES_DATA.map(m => m.rev),
+      backgroundColor: _momColors,
+      borderRadius: 6, borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    layout: { padding: { top: 32 } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const m = VENTAS_MENSUALES_DATA[ctx.dataIndex];
+            const suffix = m.tipo === 'est' ? ' (estimado)' : m.tipo === 'parcial' ? ' (parcial)' : ' (real)';
+            const lines = [' ' + fmtARS(ctx.parsed.y) + suffix];
+            if (ctx.dataIndex > 0) {
+              const prev = VENTAS_MENSUALES_DATA[ctx.dataIndex - 1].rev;
+              if (prev > 0) {
+                const pct = ((ctx.parsed.y - prev) / prev * 100).toFixed(1);
+                lines.push(' MoM: ' + (pct >= 0 ? '+' : '') + pct + '%');
+              }
+            }
+            return lines;
+          }
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { beginAtZero: false, ticks: { callback: v => fmtARS(v) }, grid: { color: '#f3f4f6' } }
+    },
+    onClick(e, els) {
+      if (!els.length) return;
+      const m = VENTAS_MENSUALES_DATA[els[0].index];
+      const btns = document.querySelectorAll('#ventas-mes-selector .mes-btn');
+      const idx = VENTAS_MENSUALES_DATA.findIndex(x => x.key === m.key);
+      if (btns[idx]) setMes(m.key, btns[idx]);
+    }
+  },
+  plugins: [_barLabels]
+});
+
 // ───────── CHARTS VENTAS ─────────
 
 function dayColors(data) {
@@ -1678,31 +1801,53 @@ const chartVentasDow = new Chart(document.getElementById('chart-ventas-dow').get
 });
 
 // ── Cambio de mes ──
-function setMes(mes, btn) {
-  document.querySelectorAll('.mes-btn').forEach(b => b.classList.remove('active'));
+function setMes(key, btn) {
+  document.querySelectorAll('#ventas-mes-selector .mes-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
-  const ventas = mes === 'junio' ? VENTAS_JUNIO : (mes === 'mayo' ? VENTAS_MAYO : VENTAS_ABRIL);
-  const dow    = mes === 'junio' ? DOW_PROMEDIOS_JUNIO : (mes === 'mayo' ? DOW_PROMEDIOS_MAYO : DOW_PROMEDIOS);
-  const normal = ventas.filter(d => !d.fecha.includes('*'));  // excluir feriados para avg
-  const total  = ventas.reduce((a,d) => a+d.revenue, 0);
+  const md = VENTAS_MENSUALES_DATA.find(m => m.key === key);
+  if (!md) return;
+
+  // Highlight bar chart
+  if (typeof chartVentasMensuales !== 'undefined') {
+    const idx = VENTAS_MENSUALES_DATA.findIndex(m => m.key === key);
+    chartVentasMensuales.data.datasets[0].backgroundColor = VENTAS_MENSUALES_DATA.map((m, i) =>
+      i === idx ? '#e8470a' : m.tipo === 'real' ? '#3b82f6AA' : m.tipo === 'parcial' ? '#f5a623AA' : '#9ca3afAA'
+    );
+    chartVentasMensuales.update();
+  }
+
+  // KPIs
+  document.getElementById('kpi-v-label').textContent = `Ventas · ${md.labelLong}`;
+  document.getElementById('kpi-v-total').textContent = fmtARS(md.rev);
+
+  if (!md.ventas) {
+    // Mes sin datos diarios — solo estimado
+    document.getElementById('kpi-v-dias').textContent = 'Revenue estimado · unidades × precio de carta';
+    document.getElementById('kpi-v-avg').textContent = '—';
+    document.getElementById('kpi-v-avg-sub').textContent = 'Sin datos diarios';
+    document.getElementById('kpi-v-mejor').textContent = '—';
+    document.getElementById('kpi-v-mejor-sub').textContent = 'Sin detalle diario disponible';
+    return;
+  }
+
+  // Mes con datos diarios
+  const ventas = md.ventas;
+  const dow    = md.dow;
+  const normal = ventas.filter(d => !d.fecha.includes('*'));
   const avgD   = Math.round(normal.reduce((a,d) => a+d.revenue, 0) / normal.length);
   const best   = ventas.reduce((a,d) => d.revenue > a.revenue ? d : a, ventas[0]);
   const prod1  = PRODUCTOS[0];
-  const label  = mes === 'junio' ? 'Ventas · Junio 2026' : (mes === 'mayo' ? 'Ventas · Mayo 2026' : 'Ventas · Abril 2026');
-  const diasSub= `${ventas.length} día${ventas.length !== 1 ? 's' : ''} disponibles · datos reales Datalive`;
 
-  document.getElementById('kpi-v-label').textContent   = label;
-  document.getElementById('kpi-v-total').textContent   = fmtARS(total);
-  document.getElementById('kpi-v-dias').textContent    = diasSub;
+  document.getElementById('kpi-v-dias').textContent    = `${ventas.length} día${ventas.length !== 1 ? 's' : ''} disponibles · datos reales Datalive`;
   document.getElementById('kpi-v-avg').textContent     = fmtARS(avgD);
-  document.getElementById('kpi-v-avg-sub').textContent = mes === 'junio' ? `${normal.length} día${normal.length !== 1 ? 's' : ''} hábiles (excl. feriados)` : (mes === 'mayo' ? '23 días hábiles (excl. feriados)' : '245 cmd/día promedio');
+  document.getElementById('kpi-v-avg-sub').textContent = `${normal.length} días hábiles (excl. feriados)`;
   document.getElementById('kpi-v-mejor').textContent   = fmtARS(best.revenue);
   document.getElementById('kpi-v-mejor-sub').textContent = best.fecha;
   document.getElementById('kpi-v-prod1').textContent   = prod1.nombre;
-  const t = mes === 'mayo' ? prod1.totalMayo : prod1.total;
-  const a = mes === 'mayo' ? prod1.avgMayo   : prod1.avg;
-  document.getElementById('kpi-v-prod1-sub').textContent = `${t.toLocaleString('es-AR')} unid. · ${a.toFixed(0)}/día`;
+  const totalKey = key === '2026-05' ? 'totalMayo' : 'total';
+  const tU = prod1[totalKey]; const aU = key === '2026-05' ? prod1.avgMayo : prod1.avg;
+  document.getElementById('kpi-v-prod1-sub').textContent = `${tU.toLocaleString('es-AR')} unid. · ${aU.toFixed(0)}/día`;
 
   // Daily chart
   chartVentasDia._mesData = ventas;
@@ -1712,37 +1857,34 @@ function setMes(mes, btn) {
   chartVentasDia.update();
 
   // DOW chart
-  chartVentasDow.data.labels = dow.map(d => d.dia);
-  chartVentasDow.data.datasets[0].data = dow.map(d => d.avg);
-  chartVentasDow.data.datasets[0].backgroundColor = dow.map(d =>
-    d.avg >= 1300000 ? '#10b981BB' : d.avg <= 950000 ? '#ef4444BB' : '#f5a623BB');
-  chartVentasDow.update();
+  if (dow) {
+    chartVentasDow.data.labels = dow.map(d => d.dia);
+    chartVentasDow.data.datasets[0].data = dow.map(d => d.avg);
+    chartVentasDow.data.datasets[0].backgroundColor = dow.map(d =>
+      d.avg >= 1300000 ? '#10b981BB' : d.avg <= 950000 ? '#ef4444BB' : '#f5a623BB');
+    chartVentasDow.update();
+  }
 
-  // Top productos chart
-  const totalKey = mes === 'mayo' ? 'totalMayo' : 'total';
-  chartTopProductos._mesKey = mes;
+  // Top productos / revenue charts
+  chartTopProductos._mesKey = key;
   chartTopProductos.data.datasets[0].data = PRODUCTOS.map(p => p[totalKey]);
   chartTopProductos.update();
 
-  // Revenue por producto (re-sort para el mes activo)
-  const revS = sortedByRevenue(mes);
-  chartRevProducto._mesKey = mes;
+  const revS = sortedByRevenue(key === '2026-05' ? 'mayo' : 'abril');
+  chartRevProducto._mesKey = key;
   chartRevProducto.data.labels = revS.map(p => p.nombre);
   chartRevProducto.data.datasets[0].data = revS.map(p => p[totalKey] * p.precio);
   chartRevProducto.data.datasets[0].backgroundColor = revS.map((p,i) => COLORS[i % COLORS.length] + 'CC');
   chartRevProducto.update();
 
-  // Revenue por categoría
-  const cat = catRevenueData(mes);
+  const cat = catRevenueData(key === '2026-05' ? 'mayo' : 'abril');
   chartRevCategoria.data.labels = Object.keys(cat);
   chartRevCategoria.data.datasets[0].data = Object.values(cat);
   chartRevCategoria.update();
 
-  // Títulos dinámicos
-  const mesLabel = mes === 'mayo' ? 'Mayo 2026' : 'Abril 2026';
-  document.getElementById('title-top-productos').textContent   = `Top Productos por Volumen · ${mesLabel}`;
-  document.getElementById('title-revenue-producto').textContent = `Revenue Estimado por Producto · ${mesLabel}`;
-  document.getElementById('title-revenue-categoria').textContent = `Revenue por Categoría · ${mesLabel}`;
+  document.getElementById('title-top-productos').textContent    = `Top Productos por Volumen · ${md.labelLong}`;
+  document.getElementById('title-revenue-producto').textContent  = `Revenue Estimado por Producto · ${md.labelLong}`;
+  document.getElementById('title-revenue-categoria').textContent = `Revenue por Categoría · ${md.labelLong}`;
 }
 
 const chartTopProductos = new Chart(document.getElementById('chart-top-productos').getContext('2d'), {
