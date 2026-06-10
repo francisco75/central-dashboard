@@ -242,6 +242,39 @@ async def login(page):
     print("✅ Login completado")
 
 # ── Playwright: Fetch ventas detalladas ───────────────────────────
+async def get_turno_options(page) -> dict:
+    """
+    Navega al formulario del reporte y extrae las opciones del select filtro_turno.
+    Devuelve {value: text_label, ...}. Vacío si no encuentra el select.
+    """
+    report_url = BASE_URL + "?action=6&subaction=rp_ventas_detalladas_sucursalxdia_nuevo"
+    try:
+        await page.goto(report_url, wait_until="domcontentloaded", timeout=30000)
+        options = await page.evaluate("""() => {
+            const sel = document.querySelector('select[name="filtro_turno"], #filtro_turno, select[id*="turno"], select[name*="turno"]');
+            if (!sel) return null;
+            return Array.from(sel.options).map(o => ({value: o.value, text: o.text.trim()}));
+        }""")
+        if options:
+            opts = {o['value']: o['text'] for o in options}
+            print(f"  ↳ Turno options: {opts}")
+            return opts
+        else:
+            print("  ↳ No se encontró select de turno")
+            return {}
+    except Exception as e:
+        print(f"  ↳ Error obteniendo turno options: {e}")
+        return {}
+
+
+def find_turno_val(options: dict, keywords: list[str]) -> str:
+    """Busca en las opciones del select la que coincida con alguno de los keywords."""
+    for val, text in options.items():
+        if any(kw.lower() in text.lower() for kw in keywords):
+            return val
+    return ''
+
+
 async def fetch_detallado(page, fecha_desde: str, fecha_hasta: str, turno_val: str = '') -> str | None:
     """
     Navega directo a la URL del endpoint AJAX con las fechas correctas.
@@ -604,9 +637,17 @@ async def main() -> int:
         page    = await (await browser.new_context()).new_page()
 
         await login(page)
+
+        # Descubrir valores correctos de turno desde el formulario
+        print("\n📋 Detectando opciones de turno...")
+        turno_options = await get_turno_options(page)
+        turno_M = find_turno_val(turno_options, ['mañana', 'manana', 'mañ', 'man', 'morning', 'M'])
+        turno_T = find_turno_val(turno_options, ['tarde', 'tar', 'afternoon', 'T'])
+        print(f"  ↳ Turno M={turno_M!r}  T={turno_T!r}")
+
         ajax_html = await fetch_detallado(page, fecha_desde, fecha_hasta)
-        ajax_M    = await fetch_detallado(page, fecha_desde, fecha_hasta, turno_val='1')
-        ajax_T    = await fetch_detallado(page, fecha_desde, fecha_hasta, turno_val='2')
+        ajax_M    = await fetch_detallado(page, fecha_desde, fecha_hasta, turno_val=turno_M) if turno_M else None
+        ajax_T    = await fetch_detallado(page, fecha_desde, fecha_hasta, turno_val=turno_T) if turno_T else None
         await browser.close()
 
     if not ajax_html:
@@ -759,6 +800,9 @@ async def main() -> int:
     debug_info = {
         'date': str(today),
         'period': f'{fecha_desde}→{fecha_hasta}',
+        'turnoM': turno_M,
+        'turnoT': turno_T,
+        'turnoOptions': turno_options,
         'ajaxOk': bool(ajax_html),
         'ajaxMOk': bool(ajax_M),
         'ajaxTOk': bool(ajax_T),
@@ -770,6 +814,8 @@ async def main() -> int:
         'revDays': len(daily_rev),
         'empDailyM': len(emp_daily_M),
         'empDailyT': len(emp_daily_T),
+        'sampleEmpM': dict(list(emp_daily_M.items())[:3]),
+        'sampleEmpT': dict(list(emp_daily_T.items())[:3]),
         'sampleProds': sample_prods,
         'sampleDates': sample_dates,
         'sampleEmpDates': sorted(emp_daily.keys())[:5],
