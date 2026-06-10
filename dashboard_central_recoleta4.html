@@ -490,19 +490,11 @@
     <!-- Tabla mensual detallada -->
     <div class="table-card" style="overflow-x:auto">
       <div class="section-title">Detalle Mensual · Cobros reales por canal y medio de pago</div>
-      <table style="min-width:860px">
-        <thead>
-          <tr>
-            <th style="min-width:160px">Métrica</th>
-            <th>Sep '25</th><th>Oct '25</th><th>Nov '25</th><th>Dic '25</th>
-            <th>Ene '26</th><th>Feb '26</th><th>Mar '26</th><th style="background:#fffbf0">Abr '26</th>
-          </tr>
-        </thead>
+      <table style="min-width:860px" id="ingresos-table">
+        <thead id="ingresos-thead"></thead>
         <tbody id="ingresos-tbody"></tbody>
       </table>
-      <p style="font-size:11px;color:var(--muted);margin-top:10px">
-        Fuente: Historial de Caja Datalive · Sep 2025 – Abr 2026
-      </p>
+      <p id="ingresos-fuente" style="font-size:11px;color:var(--muted);margin-top:10px"></p>
     </div>
 
   </div><!-- /tab-ingresos -->
@@ -1650,36 +1642,91 @@ function setIngMes(key, btn) {
 
 // ── Tabla mensual ──
 (function() {
+  const thead = document.getElementById('ingresos-thead');
   const tbody = document.getElementById('ingresos-tbody');
+  const fuente = document.getElementById('ingresos-fuente');
   const MESES = ING_MESES;
+  const last = MESES.length - 1;
+
+  // Dynamic header
+  thead.innerHTML = '<tr><th style="min-width:160px">Métrica</th>' +
+    ING_LABELS.map((l, i) => `<th${i===last?' style="background:#fffbf0"':''}>${l}</th>`).join('') + '</tr>';
+  fuente.textContent = `Fuente: Historial de Caja Datalive · ${ING_LABELS[0]} – ${ING_LABELS[last]}`;
 
   const pct = (a, b) => b > 0 ? (a/b*100).toFixed(1)+'%' : '—';
-  const cell = (v, last) => `<td style="text-align:right${last?' background:#fffbf0':''}">` + v + '</td>';
+  const cell = (v, isLast) => `<td style="text-align:right${isLast?' ;background:#fffbf0':''}">` + v + '</td>';
 
+  // MoM variation helper
+  const mom = (cur, prev) => {
+    if (!prev || !cur || prev === 0) return '';
+    const chg = ((cur - prev) / prev * 100).toFixed(1);
+    const color = chg >= 0 ? '#10b981' : '#ef4444';
+    const sign = chg >= 0 ? '+' : '';
+    return `<br><span style="font-size:9px;color:${color}">${sign}${chg}%</span>`;
+  };
+
+  // Value extractor per row for MoM
   const rows = [
-    { label: 'Cobrado Total',      fn: d => `<strong>${fmtARS(d.total)}</strong>` },
-    { label: 'Comandas',           fn: d => d.n_comandas.toLocaleString('es-AR') },
-    { label: 'Ticket Promedio',    fn: d => fmtARS(Math.round(d.total/d.n_comandas)) },
-    { label: '— Efectivo',         fn: d => fmtARS(d.efectivo) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.efectivo,d.total)}</span>` },
-    { label: '— Digital',          fn: d => fmtARS(d.digital)  + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.digital,d.total)}</span>` },
-    { label: 'Local (presencial)', fn: d => fmtARS(d.local.total) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.local.total,d.total)}</span>` },
-    { label: '  · Efec local',     fn: d => fmtARS(d.local.efectivo) },
-    { label: '  · Dig local',      fn: d => fmtARS(d.local.digital) },
-    { label: 'Apps',               fn: d => d.apps.total > 0 ? fmtARS(d.apps.total) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.apps.total,d.total)}</span>` : '—' },
+    { label: 'Cobrado Total',      val: d => d.total,
+      fn: d => `<strong>${fmtARS(d.total)}</strong>` },
+    { label: 'Comandas',           val: d => d.n_comandas,
+      fn: d => d.n_comandas.toLocaleString('es-AR') },
+    { label: 'Ticket Promedio',    val: d => Math.round(d.total/d.n_comandas),
+      fn: d => '$' + Math.round(d.total/d.n_comandas).toLocaleString('es-AR') },
+    { label: '— Efectivo',         val: d => d.efectivo,
+      fn: d => fmtARS(d.efectivo) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.efectivo,d.total)}</span>` },
+    { label: '— Digital',          val: d => d.digital,
+      fn: d => fmtARS(d.digital)  + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.digital,d.total)}</span>` },
+    { label: 'Local (presencial)', val: d => d.local.total,
+      fn: d => fmtARS(d.local.total) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.local.total,d.total)}</span>` },
+    { label: '  · Efec local',     val: d => d.local.efectivo,
+      fn: d => fmtARS(d.local.efectivo) + `<span style="font-size:10px;color:#3b82f6"> ${pct(d.local.efectivo,d.local.total)}</span>` },
+    { label: '  · Dig local',      val: d => d.local.digital,
+      fn: d => fmtARS(d.local.digital) + `<span style="font-size:10px;color:#3b82f6"> ${pct(d.local.digital,d.local.total)}</span>` },
+    { label: 'Apps',               val: d => d.apps.total,
+      fn: d => d.apps.total > 0 ? fmtARS(d.apps.total) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.apps.total,d.total)}</span>` : '—' },
   ];
 
   rows.forEach(row => {
     const cells = MESES.map((key, i) => {
       const d = CAJA_HISTORICO[key];
-      return cell(d ? row.fn(d) : '—', i === MESES.length-1);
+      if (!d) return cell('—', i === last);
+      const prevD = i > 0 ? CAJA_HISTORICO[MESES[i-1]] : null;
+      const curVal = row.val(d);
+      const prevVal = prevD ? row.val(prevD) : null;
+      return cell(row.fn(d) + mom(curVal, prevVal), i === last);
     }).join('');
     tbody.innerHTML += `<tr><td style="font-weight:500;color:var(--muted);white-space:nowrap">${row.label}</td>${cells}</tr>`;
   });
 })();
 
 // ── Stacked bar chart ──
+const stackedLabelsPlugin = {
+  id: 'stackedLabels',
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach((ds, di) => {
+      const meta = chart.getDatasetMeta(di);
+      meta.data.forEach((bar, idx) => {
+        const v = ds.data[idx];
+        if (!v || v < 500000) return;
+        const h = Math.abs(bar.base - bar.y);
+        if (h < 16) return;
+        ctx.save();
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const lbl = (v/1000000).toFixed(1) + 'M';
+        ctx.fillText(lbl, bar.x, (bar.y + bar.base) / 2);
+        ctx.restore();
+      });
+    });
+  }
+};
 const chartIngresosCanalChart = new Chart(document.getElementById('chart-ingresos-canal').getContext('2d'), {
   type: 'bar',
+  plugins: [stackedLabelsPlugin],
   data: {
     labels: ING_LABELS,
     datasets: [
@@ -2110,6 +2157,7 @@ const PIZZA_COLORS = ['#e8470a','#f5a623','#3b82f6','#10b981','#8b5cf6',
 // Ranking bar chart
 new Chart(document.getElementById('chart-pizza-ranking').getContext('2d'), {
   type: 'bar',
+  plugins: [topLabelsPlugin],
   data: {
     labels: PIZZAS.map(p => p[0]),
     datasets: [{
@@ -2121,6 +2169,7 @@ new Chart(document.getElementById('chart-pizza-ranking').getContext('2d'), {
   },
   options: {
     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    layout: { padding: { right: 40 } },
     plugins: {
       legend: { display: false },
       tooltip: { callbacks: { label: ctx => {
@@ -2281,6 +2330,7 @@ const topLabelsPlugin = {
   id: 'topLabels',
   afterDatasetsDraw(chart) {
     const ctx = chart.ctx;
+    const horiz = chart.options.indexAxis === 'y';
     chart.data.datasets.forEach((ds, di) => {
       const meta = chart.getDatasetMeta(di);
       meta.data.forEach((bar, idx) => {
@@ -2289,9 +2339,16 @@ const topLabelsPlugin = {
         ctx.save();
         ctx.font = 'bold 10px sans-serif';
         ctx.fillStyle = '#374151';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(v, bar.x, bar.y - 3);
+        if (horiz) {
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          const lbl = v >= 1000 ? (v/1000).toFixed(1).replace(/\.0$/,'')+'K' : v;
+          ctx.fillText(lbl, bar.x + 4, bar.y);
+        } else {
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(v, bar.x, bar.y - 3);
+        }
         ctx.restore();
       });
     });
@@ -2576,8 +2633,10 @@ const empTotal = EMPANADAS.reduce((a,p) => a+p[1], 0);
   new Chart(document.getElementById('chart-emp-dow').getContext('2d'), {
     type: 'bar',
     data: { labels: EMP_DOW.map(d => d.dia), datasets },
+    plugins: [topLabelsPlugin],
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 18 } },
       plugins: {
         legend: { display: hasShift, labels: { usePointStyle: true, font: { size: 11 } } },
         tooltip: { callbacks: { label: ctx => ` ~${ctx.parsed.y} emp/día (${ctx.dataset.label})` } }
@@ -2641,6 +2700,7 @@ const EMP_COLORS = ['#e8470a','#f5a623','#3b82f6','#10b981','#8b5cf6',
 // Ranking bar
 new Chart(document.getElementById('chart-emp-ranking').getContext('2d'), {
   type: 'bar',
+  plugins: [topLabelsPlugin],
   data: {
     labels: EMPANADAS.map(p => p[0]),
     datasets: [{
@@ -2652,6 +2712,7 @@ new Chart(document.getElementById('chart-emp-ranking').getContext('2d'), {
   },
   options: {
     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    layout: { padding: { right: 40 } },
     plugins: {
       legend: { display: false },
       tooltip: { callbacks: { label: ctx => {
@@ -2922,6 +2983,7 @@ const OTROS_COLORS = ['#78350f','#d97706','#92400e','#b45309','#84cc16',
 
 new Chart(document.getElementById('chart-otros-ranking').getContext('2d'), {
   type: 'bar',
+  plugins: [topLabelsPlugin],
   data: {
     labels: OTROS.map(p => p[0]),
     datasets: [{ label: 'Unidades', data: OTROS.map(p => p[1]),
@@ -2929,6 +2991,7 @@ new Chart(document.getElementById('chart-otros-ranking').getContext('2d'), {
   },
   options: {
     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    layout: { padding: { right: 40 } },
     plugins: {
       legend: { display: false },
       tooltip: { callbacks: { label: ctx => {
@@ -3098,6 +3161,7 @@ const BEB_COLORS = [
 
 new Chart(document.getElementById('chart-beb-ranking').getContext('2d'), {
   type: 'bar',
+  plugins: [topLabelsPlugin],
   data: {
     labels: BEBIDAS.map(p => p[0]),
     datasets: [{ label: 'Unidades', data: BEBIDAS.map(p => p[1]),
@@ -3105,6 +3169,7 @@ new Chart(document.getElementById('chart-beb-ranking').getContext('2d'), {
   },
   options: {
     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    layout: { padding: { right: 40 } },
     plugins: {
       legend: { display: false },
       tooltip: { callbacks: { label: ctx => {
