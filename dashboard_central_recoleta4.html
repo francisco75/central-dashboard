@@ -1653,49 +1653,58 @@ function setIngMes(key, btn) {
     ING_LABELS.map((l, i) => `<th${i===last?' style="background:#fffbf0"':''}>${l}</th>`).join('') + '</tr>';
   fuente.textContent = `Fuente: Historial de Caja Datalive · ${ING_LABELS[0]} – ${ING_LABELS[last]}`;
 
-  const pct = (a, b) => b > 0 ? (a/b*100).toFixed(1)+'%' : '—';
-  const cell = (v, isLast) => `<td style="text-align:right${isLast?' ;background:#fffbf0':''}">` + v + '</td>';
-
-  // MoM variation helper — inline, al lado del valor
-  const mom = (cur, prev) => {
+  const pct = (a, b) => b > 0 ? (a/b*100).toFixed(1)+'%' : '';
+  const momStr = (cur, prev) => {
     if (!prev || !cur || prev === 0) return '';
     const chg = ((cur - prev) / prev * 100).toFixed(1);
     const color = chg >= 0 ? '#10b981' : '#ef4444';
     const arrow = chg >= 0 ? '▲' : '▼';
-    return ` <span style="font-size:9px;color:${color}">${arrow}${Math.abs(chg)}%</span>`;
+    return `<span style="color:${color}">${arrow}${Math.abs(chg)}%</span>`;
   };
 
+  // Each row: value, optional % (with color), val extractor for MoM
   const rows = [
     { label: 'Cobrado Total',      val: d => d.total,
-      fn: d => `<strong>${fmtARS(d.total)}</strong>` },
+      main: d => `<strong>${fmtARS(d.total)}</strong>`, pctFn: null },
     { label: 'Comandas',           val: d => d.n_comandas,
-      fn: d => d.n_comandas.toLocaleString('es-AR') },
+      main: d => d.n_comandas.toLocaleString('es-AR'), pctFn: null },
     { label: 'Ticket Promedio',    val: d => Math.round(d.total/d.n_comandas),
-      fn: d => '$' + Math.round(d.total/d.n_comandas).toLocaleString('es-AR') },
+      main: d => '$' + Math.round(d.total/d.n_comandas).toLocaleString('es-AR'), pctFn: null },
     { label: '— Efectivo',         val: d => d.efectivo,
-      fn: d => fmtARS(d.efectivo) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.efectivo,d.total)}</span>` },
+      main: d => fmtARS(d.efectivo), pctFn: d => pct(d.efectivo, d.total), pctColor: 'var(--muted)' },
     { label: '— Digital',          val: d => d.digital,
-      fn: d => fmtARS(d.digital)  + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.digital,d.total)}</span>` },
+      main: d => fmtARS(d.digital), pctFn: d => pct(d.digital, d.total), pctColor: 'var(--muted)' },
     { label: 'Local (presencial)', val: d => d.local.total,
-      fn: d => fmtARS(d.local.total) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.local.total,d.total)}</span>` },
+      main: d => fmtARS(d.local.total), pctFn: d => pct(d.local.total, d.total), pctColor: 'var(--muted)' },
     { label: '  · Efec local',     val: d => d.local.efectivo,
-      fn: d => fmtARS(d.local.efectivo) + `<span style="font-size:10px;color:#3b82f6"> ${pct(d.local.efectivo,d.local.total)}</span>` },
+      main: d => fmtARS(d.local.efectivo), pctFn: d => pct(d.local.efectivo, d.local.total), pctColor: '#3b82f6' },
     { label: '  · Dig local',      val: d => d.local.digital,
-      fn: d => fmtARS(d.local.digital) + `<span style="font-size:10px;color:#3b82f6"> ${pct(d.local.digital,d.local.total)}</span>` },
+      main: d => fmtARS(d.local.digital), pctFn: d => pct(d.local.digital, d.local.total), pctColor: '#3b82f6' },
     { label: 'Apps',               val: d => d.apps.total,
-      fn: d => d.apps.total > 0 ? fmtARS(d.apps.total) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.apps.total,d.total)}</span>` : '—' },
+      main: d => d.apps.total > 0 ? fmtARS(d.apps.total) : '—', pctFn: d => d.apps.total > 0 ? pct(d.apps.total, d.total) : '', pctColor: 'var(--muted)' },
   ];
 
   rows.forEach(row => {
     const cells = MESES.map((key, i) => {
       const d = CAJA_HISTORICO[key];
-      if (!d) return cell('—', i === last);
+      const bg = i === last ? 'background:#fffbf0;' : '';
+      if (!d) return `<td style="text-align:right;${bg}">—</td>`;
       const prevD = i > 0 ? CAJA_HISTORICO[MESES[i-1]] : null;
       const curVal = row.val(d);
       const prevVal = prevD ? row.val(prevD) : null;
-      return cell(row.fn(d) + mom(curVal, prevVal), i === last);
+      const pctStr = row.pctFn ? row.pctFn(d) : '';
+      const momHtml = momStr(curVal, prevVal);
+      // Row 2: % left, MoM right
+      let line2 = '';
+      if (pctStr || momHtml) {
+        line2 = `<div style="display:flex;justify-content:flex-end;gap:6px;font-size:10px;margin-top:2px;white-space:nowrap">`;
+        if (pctStr) line2 += `<span style="color:${row.pctColor||'var(--muted)'}">${pctStr}</span>`;
+        if (momHtml) line2 += momHtml;
+        line2 += '</div>';
+      }
+      return `<td style="text-align:right;${bg}vertical-align:top">${row.main(d)}${line2}</td>`;
     }).join('');
-    tbody.innerHTML += `<tr><td style="font-weight:500;color:var(--muted);white-space:nowrap">${row.label}</td>${cells}</tr>`;
+    tbody.innerHTML += `<tr><td style="font-weight:500;color:var(--muted);white-space:nowrap;vertical-align:top">${row.label}</td>${cells}</tr>`;
   });
 })();
 
