@@ -2172,8 +2172,8 @@ function buildSemanasDynamic(tbodyId, diariasObj, feriadosSet, theadId, diariasM
   let firstMon = new Date(y, m - 1, 1);
   while (firstMon.getDay() !== 1) firstMon.setDate(firstMon.getDate() + 1);
   const diasNombre = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const weekData = {};
-  diasNombre.forEach(d => { weekData[d] = []; });
+  const weekData = {}, weekDataM = {}, weekDataT = {};
+  diasNombre.forEach(d => { weekData[d] = []; weekDataM[d] = []; weekDataT[d] = []; });
   let numWeeks = 0;
   allKeys.filter(k => k.startsWith(curMonth)).forEach(k => {
     const d = new Date(k + 'T12:00:00');
@@ -2182,11 +2182,14 @@ function buildSemanasDynamic(tbodyId, diariasObj, feriadosSet, theadId, diariasM
     const wi = Math.floor((d - firstMon) / (7 * 86400000));
     if (wi < 0) return;
     const dia = diasNombre[dow];
-    while (weekData[dia].length <= wi) weekData[dia].push(null);
+    while (weekData[dia].length <= wi) { weekData[dia].push(null); weekDataM[dia].push(null); weekDataT[dia].push(null); }
     weekData[dia][wi] = diariasObj[k];
+    if (diariasM && diariasM[k] != null) weekDataM[dia][wi] = diariasM[k];
+    if (diariasT && diariasT[k] != null) weekDataT[dia][wi] = diariasT[k];
     if (wi + 1 > numWeeks) numWeeks = wi + 1;
   });
-  diasNombre.forEach(d => { while (weekData[d].length < numWeeks) weekData[d].push(null); });
+  diasNombre.forEach(d => { while (weekData[d].length < numWeeks) { weekData[d].push(null); weekDataM[d].push(null); weekDataT[d].push(null); } });
+  const hasShifts = !!(diariasM && diariasT);
   const thead = theadId ? document.getElementById(theadId) : null;
   if (thead) {
     const weekCols = Array.from({length: numWeeks}, (_, wi) => {
@@ -2206,6 +2209,16 @@ function buildSemanasDynamic(tbodyId, diariasObj, feriadosSet, theadId, diariasM
       return !feriadosSet.has(dt.toISOString().split('T')[0]);
     });
     const avg = validVals.length ? Math.round(validVals.reduce((s,v)=>s+v,0)/validVals.length) : 0;
+    // Avg M/T
+    let avgShiftLine = '';
+    if (hasShifts) {
+      const vM = weekDataM[dia].filter((v,wi) => v != null && vals[wi] != null && !feriadosSet.has((() => { const dt2=new Date(firstMon); dt2.setDate(firstMon.getDate()+wi*7+dowIdx); return dt2.toISOString().split('T')[0]; })()));
+      const vT = weekDataT[dia].filter((v,wi) => v != null && vals[wi] != null && !feriadosSet.has((() => { const dt2=new Date(firstMon); dt2.setDate(firstMon.getDate()+wi*7+dowIdx); return dt2.toISOString().split('T')[0]; })()));
+      const aM = vM.length ? Math.round(vM.reduce((s,v)=>s+v,0)/vM.length) : null;
+      const aT = vT.length ? Math.round(vT.reduce((s,v)=>s+v,0)/vT.length) : null;
+      if (aM !== null && aT !== null)
+        avgShiftLine = `<span style="display:flex;justify-content:center;gap:4px;margin-top:3px"><span style="font-size:9px;font-weight:600;background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:1px 4px;line-height:1.4">☀ ${aM}</span><span style="font-size:9px;font-weight:600;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 4px;line-height:1.4">🌙 ${aT}</span></span>`;
+    }
     const nonNull = vals.filter(v => v !== null);
     const lastVal = nonNull.length ? nonNull[nonNull.length-1] : null;
     const varPct = avg > 0 && lastVal !== null ? ((lastVal - avg)/avg*100) : null;
@@ -2236,18 +2249,24 @@ function buildSemanasDynamic(tbodyId, diariasObj, feriadosSet, theadId, diariasM
     tbody.innerHTML += `<tr>
       <td style="font-weight:600">${dia}</td>
       ${celdas}
-      <td style="text-align:center;color:var(--muted)">${avg.toLocaleString('es-AR')}</td>
+      <td style="text-align:center;color:var(--muted)">${avg.toLocaleString('es-AR')}${avgShiftLine}</td>
       <td style="text-align:center;font-weight:700;color:${varColor}">${varStr}</td>
     </tr>`;
   });
   const lastWeekHasSat = weekData['Sábado'][numWeeks-1] !== null;
   const semTotals = Array.from({length: numWeeks}, (_,wi) =>
     diasNombre.reduce((sum,d) => sum + (weekData[d][wi]||0), 0));
+  const semTotalsM = hasShifts ? Array.from({length: numWeeks}, (_,wi) =>
+    diasNombre.reduce((sum,d) => sum + (weekDataM[d][wi]||0), 0)) : null;
+  const semTotalsT = hasShifts ? Array.from({length: numWeeks}, (_,wi) =>
+    diasNombre.reduce((sum,d) => sum + (weekDataT[d][wi]||0), 0)) : null;
   const totCeldas = semTotals.map((v,wi) => {
-    const lbl = (!lastWeekHasSat && wi===numWeeks-1)
-      ? `${v.toLocaleString('es-AR')}<span style="font-size:9px;color:#f59e0b;display:block">sin sáb</span>`
-      : v.toLocaleString('es-AR');
-    return `<td style="text-align:center;font-weight:700;color:var(--accent)">${lbl}</td>`;
+    const sinSab = (!lastWeekHasSat && wi===numWeeks-1)
+      ? '<span style="font-size:9px;color:#f59e0b;display:block">sin sáb</span>' : '';
+    let shiftTot = '';
+    if (semTotalsM && semTotalsT && (semTotalsM[wi] > 0 || semTotalsT[wi] > 0))
+      shiftTot = `<span style="display:flex;justify-content:center;gap:4px;margin-top:3px"><span style="font-size:9px;font-weight:600;background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:1px 4px;line-height:1.4">☀ ${semTotalsM[wi].toLocaleString('es-AR')}</span><span style="font-size:9px;font-weight:600;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 4px;line-height:1.4">🌙 ${semTotalsT[wi].toLocaleString('es-AR')}</span></span>`;
+    return `<td style="text-align:center;font-weight:700;color:var(--accent)">${v.toLocaleString('es-AR')}${shiftTot}${sinSab}</td>`;
   }).join('');
   tbody.innerHTML += `<tr style="background:#fef9f5;border-top:2px solid var(--accent)">
     <td style="font-weight:700;color:var(--accent)">TOTAL</td>
@@ -2278,6 +2297,34 @@ const topLabelsPlugin = {
     });
   }
 };
+
+// ── doughnutPctPlugin: porcentaje sobre cada segmento de donut ──
+const doughnutPctPlugin = {
+  id: 'doughnutPct',
+  afterDatasetsDraw(chart) {
+    if (chart.config.type !== 'doughnut') return;
+    const ctx = chart.ctx;
+    const ds = chart.data.datasets[0];
+    const total = ds.data.reduce((a, b) => a + b, 0);
+    if (!total) return;
+    chart.getDatasetMeta(0).data.forEach((arc, i) => {
+      const pct = ds.data[i] / total * 100;
+      if (pct < 4) return;
+      const mid = (arc.startAngle + arc.endAngle) / 2;
+      const r = (arc.innerRadius + arc.outerRadius) / 2;
+      const x = arc.x + Math.cos(mid) * r;
+      const y = arc.y + Math.sin(mid) * r;
+      ctx.save();
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(pct.toFixed(1) + '%', x, y);
+      ctx.restore();
+    });
+  }
+};
+Chart.register(doughnutPctPlugin);
 
 // Evolución mensual top 5
 // Grandes vs Megas por mes
