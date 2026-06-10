@@ -267,9 +267,17 @@ async def get_turno_options(page) -> dict:
         return {}
 
 
-def find_turno_val(options: dict, keywords: list[str]) -> str:
-    """Busca en las opciones del select la que coincida con alguno de los keywords."""
+def find_turno_val(options: dict, val_hint: str, keywords: list[str]) -> str:
+    """
+    Busca el valor correcto para un turno.
+    1. Intenta match exacto por valor (e.g., 'M' o 'T' como claves del select).
+    2. Si no, busca por texto label evitando el valor vacío/TODOS.
+    """
+    if val_hint in options:
+        return val_hint
     for val, text in options.items():
+        if not val:
+            continue   # skip opción "TODOS"
         if any(kw.lower() in text.lower() for kw in keywords):
             return val
     return ''
@@ -641,8 +649,8 @@ async def main() -> int:
         # Descubrir valores correctos de turno desde el formulario
         print("\n📋 Detectando opciones de turno...")
         turno_options = await get_turno_options(page)
-        turno_M = find_turno_val(turno_options, ['mañana', 'manana', 'mañ', 'man', 'morning', 'M'])
-        turno_T = find_turno_val(turno_options, ['tarde', 'tar', 'afternoon', 'T'])
+        turno_M = find_turno_val(turno_options, 'M', ['mañana', 'manana', 'morning'])
+        turno_T = find_turno_val(turno_options, 'T', ['tarde', 'afternoon'])
         print(f"  ↳ Turno M={turno_M!r}  T={turno_T!r}")
 
         ajax_html = await fetch_detallado(page, fecha_desde, fecha_hasta)
@@ -753,6 +761,28 @@ async def main() -> int:
                     med_daily_T[fecha] += units
     med_daily_T = dict(med_daily_T)
 
+    pizza_g_daily_M = defaultdict(int)
+    pizza_m_daily_M = defaultdict(int)
+    for prod_norm, dias in parsed_M.items():
+        dash = dl_to_dashboard(prod_norm, PIZZA_MAP)
+        if not dash:
+            continue
+        target = pizza_m_daily_M if 'mega' in prod_norm else pizza_g_daily_M
+        for fecha, units in dias.items():
+            if fecha.startswith(month_pfx):
+                target[fecha] += units
+
+    pizza_g_daily_T = defaultdict(int)
+    pizza_m_daily_T = defaultdict(int)
+    for prod_norm, dias in parsed_T.items():
+        dash = dl_to_dashboard(prod_norm, PIZZA_MAP)
+        if not dash:
+            continue
+        target = pizza_m_daily_T if 'mega' in prod_norm else pizza_g_daily_T
+        for fecha, units in dias.items():
+            if fecha.startswith(month_pfx):
+                target[fecha] += units
+
     # ── Totales mensuales por producto ────────────────────
     emp_monthly   = monthly_totals_mapped(parsed, EMPANADA_MAP)
     pizza_monthly = monthly_totals_mapped(parsed, PIZZA_MAP)
@@ -771,10 +801,14 @@ async def main() -> int:
     html = update_js_dict(html, 'MED_DIARIAS',     med_daily)
     html = update_js_dict(html, 'PIZZA_DIARIAS_G', dict(pizza_g_daily))
     html = update_js_dict(html, 'PIZZA_DIARIAS_M', dict(pizza_m_daily))
-    html = update_js_dict(html, 'EMP_DIARIAS_M',   emp_daily_M)
-    html = update_js_dict(html, 'EMP_DIARIAS_T',   emp_daily_T)
-    html = update_js_dict(html, 'MED_DIARIAS_M',   med_daily_M)
-    html = update_js_dict(html, 'MED_DIARIAS_T',   med_daily_T)
+    html = update_js_dict(html, 'EMP_DIARIAS_M',     emp_daily_M)
+    html = update_js_dict(html, 'EMP_DIARIAS_T',     emp_daily_T)
+    html = update_js_dict(html, 'MED_DIARIAS_M',     med_daily_M)
+    html = update_js_dict(html, 'MED_DIARIAS_T',     med_daily_T)
+    html = update_js_dict(html, 'PIZZA_DIARIAS_G_M', dict(pizza_g_daily_M))
+    html = update_js_dict(html, 'PIZZA_DIARIAS_G_T', dict(pizza_g_daily_T))
+    html = update_js_dict(html, 'PIZZA_DIARIAS_M_M', dict(pizza_m_daily_M))
+    html = update_js_dict(html, 'PIZZA_DIARIAS_M_T', dict(pizza_m_daily_T))
 
     # ── Actualizar totales mensuales EMPANADAS ────────────
     print("\n--- Actualizando EMPANADAS mensuales ---")

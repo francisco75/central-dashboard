@@ -2118,6 +2118,10 @@ const topLabelsPlugin = {
 // Datos diarios reales de pizzas — Grandes (32cm) y Megas (40cm) · May 2026
 const PIZZA_DIARIAS_G = {'2026-05-01':3, '2026-05-04':6, '2026-05-05':0, '2026-05-06':9, '2026-05-07':7, '2026-05-08':13, '2026-05-09':26, '2026-05-11':8, '2026-05-12':1, '2026-05-13':11, '2026-05-14':9, '2026-05-15':17, '2026-05-16':11, '2026-05-18':3, '2026-05-19':7, '2026-05-20':8, '2026-05-21':6, '2026-05-22':18, '2026-05-23':14, '2026-05-25':4, '2026-05-26':11, '2026-05-27':3, '2026-05-28':7, '2026-05-29':13, '2026-06-01':64, '2026-06-02':47, '2026-06-03':75, '2026-06-04':57, '2026-06-05':59, '2026-06-06':43, '2026-06-07':0, '2026-06-08':48, '2026-06-09':0, '2026-06-10':0};
 const PIZZA_DIARIAS_M = {'2026-05-01':2, '2026-05-04':5, '2026-05-05':6, '2026-05-06':1, '2026-05-07':0, '2026-05-08':2, '2026-05-09':6, '2026-05-11':3, '2026-05-12':4, '2026-05-13':3, '2026-05-14':0, '2026-05-15':3, '2026-05-16':3, '2026-05-18':0, '2026-05-19':2, '2026-05-20':3, '2026-05-21':0, '2026-05-22':3, '2026-05-23':0, '2026-05-25':1, '2026-05-26':0, '2026-05-27':0, '2026-05-28':1, '2026-05-29':4, '2026-06-01':0, '2026-06-02':0, '2026-06-03':1, '2026-06-04':14, '2026-06-05':11, '2026-06-06':33, '2026-06-07':0, '2026-06-08':1, '2026-06-09':0, '2026-06-10':0};
+const PIZZA_DIARIAS_G_M = {};
+const PIZZA_DIARIAS_G_T = {};
+const PIZZA_DIARIAS_M_M = {};
+const PIZZA_DIARIAS_M_T = {};
 // Tabla detalle — separada en Grandes y Megas
 (function() {
   const GRANDES = PIZZAS.filter(p => !/mega/i.test(p[0]));
@@ -2163,8 +2167,8 @@ const PIZZA_DIARIAS_M = {'2026-05-01':2, '2026-05-04':5, '2026-05-05':6, '2026-0
 
   // ── Tablas semana a semana — mes en curso (dinámico) ──
   const FERIADOS_PIZZA = new Set(['2026-05-01','2026-05-25']);
-  const mesLabelG = buildSemanasDynamic('pizza-grandes-semanas-tbody', PIZZA_DIARIAS_G, FERIADOS_PIZZA, 'pizza-grandes-semanas-thead');
-  const mesLabelM = buildSemanasDynamic('pizza-megas-semanas-tbody',   PIZZA_DIARIAS_M, FERIADOS_PIZZA, 'pizza-megas-semanas-thead');
+  const mesLabelG = buildSemanasDynamic('pizza-grandes-semanas-tbody', PIZZA_DIARIAS_G, FERIADOS_PIZZA, 'pizza-grandes-semanas-thead', PIZZA_DIARIAS_G_M, PIZZA_DIARIAS_G_T);
+  const mesLabelM = buildSemanasDynamic('pizza-megas-semanas-tbody',   PIZZA_DIARIAS_M, FERIADOS_PIZZA, 'pizza-megas-semanas-thead',   PIZZA_DIARIAS_M_M, PIZZA_DIARIAS_M_T);
   if (mesLabelG) {
     const tG = document.getElementById('title-pizza-grandes-semanas');
     const tM = document.getElementById('title-pizza-megas-semanas');
