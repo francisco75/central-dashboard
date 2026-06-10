@@ -444,7 +444,9 @@
       <button class="mes-btn" onclick="setIngMes('2026-01',this)">Ene '26</button>
       <button class="mes-btn" onclick="setIngMes('2026-02',this)">Feb '26</button>
       <button class="mes-btn" onclick="setIngMes('2026-03',this)">Mar '26</button>
-      <button class="mes-btn active" onclick="setIngMes('2026-04',this)">Abr '26</button>
+      <button class="mes-btn" onclick="setIngMes('2026-04',this)">Abr '26</button>
+      <button class="mes-btn" onclick="setIngMes('2026-05',this)">May '26</button>
+      <button class="mes-btn active" onclick="setIngMes('2026-06',this)">Jun '26 ⚠</button>
     </div>
 
     <!-- KPIs del mes seleccionado -->
@@ -1481,28 +1483,7 @@ const TOTALES_MENSUALES = {
   '2026-05': { 'Medialunas':3108, 'Jamón y Queso':5360, 'Carne Cuchillo':2584, 'Carne Suave':2080, 'Cheeseburger':1944, 'Pollo':1750, 'Bondiola':1470, 'Roquefort con Jamón':1219, 'Carne Picante':1125, 'Capresse':1157, 'Cebolla y Queso':971, 'Verdura':787, 'Humita':738, 'Puerro y Hongos':366, 'Coca Cola 500/600ml':279, 'Pizza Muzzarella':89, 'Carne a la Criolla Veg.':128, 'Choclo y Calabaza':121, 'Pollo al Curry Vegana':131, 'Pizza Mega Muzzarella':26 },
 };
 
-// ───────── VENTAS MENSUALES DATA (todos los meses) ─────────
-
-function _estRev(key) {
-  const t = TOTALES_MENSUALES[key];
-  if (!t) return 0;
-  return PRODUCTOS.reduce((s, p) => s + (t[p.nombre] || 0) * p.precio, 0);
-}
-
-const VENTAS_MENSUALES_DATA = [
-  { key:'2025-09', label:"Sep '25", labelLong:"Sep 2025",  rev: _estRev('2025-09'), tipo:'est' },
-  { key:'2025-10', label:"Oct '25", labelLong:"Oct 2025",  rev: _estRev('2025-10'), tipo:'est' },
-  { key:'2025-11', label:"Nov '25", labelLong:"Nov 2025",  rev: _estRev('2025-11'), tipo:'est' },
-  { key:'2025-12', label:"Dic '25", labelLong:"Dic 2025",  rev: _estRev('2025-12'), tipo:'est' },
-  { key:'2026-01', label:"Ene '26", labelLong:"Ene 2026",  rev: _estRev('2026-01'), tipo:'est' },
-  { key:'2026-02', label:"Feb '26", labelLong:"Feb 2026",  rev: _estRev('2026-02'), tipo:'est' },
-  { key:'2026-03', label:"Mar '26", labelLong:"Mar 2026",  rev: _estRev('2026-03'), tipo:'est' },
-  { key:'2026-04', label:"Abr '26", labelLong:"Abril 2026", rev: VENTAS_ABRIL.reduce((a,d)=>a+d.revenue,0), tipo:'real', ventas: VENTAS_ABRIL, dow: DOW_PROMEDIOS },
-  { key:'2026-05', label:"May '26", labelLong:"Mayo 2026",  rev: VENTAS_MAYO.reduce((a,d)=>a+d.revenue,0),  tipo:'real', ventas: VENTAS_MAYO, dow: DOW_PROMEDIOS_MAYO },
-  { key:'2026-06', label:"Jun '26", labelLong:"Junio 2026", rev: VENTAS_JUNIO.reduce((a,d)=>a+d.revenue,0), tipo:'parcial', ventas: VENTAS_JUNIO, dow: DOW_PROMEDIOS_JUNIO },
-];
-
-// ───────── CAJA HISTÓRICO (medios de pago y canales, Sep 2025–Abr 2026) ─────────
+// ───────── CAJA HISTÓRICO (medios de pago y canales, Sep 2025–Jun 2026) ─────────
 const CAJA_HISTORICO = {
   "2025-09":{"n_comandas":987,"total":4962300,"efectivo":2956600,"digital":2001200,"local":{"total":4962300,"efectivo":2956600,"digital":2001200},"apps":{"total":0,"efectivo":0,"digital":0}},
   "2025-10":{"n_comandas":4899,"total":27876289,"efectivo":15562650,"digital":12306939,"local":{"total":26605000,"efectivo":15391600,"digital":11206700},"apps":{"total":1271289,"efectivo":171050,"digital":1100239}},
@@ -1511,8 +1492,24 @@ const CAJA_HISTORICO = {
   "2026-01":{"n_comandas":4091,"total":28615249,"efectivo":18056332,"digital":10558917,"local":{"total":26499716,"efectivo":17739716,"digital":8760000},"apps":{"total":2115533,"efectivo":316616,"digital":1798917}},
   "2026-02":{"n_comandas":4350,"total":28760964,"efectivo":17430556,"digital":11321507,"local":{"total":26725077,"efectivo":17130017,"digital":9586160},"apps":{"total":2035887,"efectivo":300540,"digital":1735347}},
   "2026-03":{"n_comandas":5998,"total":37430662,"efectivo":22064834,"digital":15330328,"local":{"total":34924990,"efectivo":21857118,"digital":13032372},"apps":{"total":2505672,"efectivo":207716,"digital":2297956}},
-  "2026-04":{"n_comandas":6415,"total":45022996,"efectivo":33317016,"digital":11701979,"local":{"total":42792217,"efectivo":33024016,"digital":9764200},"apps":{"total":2230779,"efectivo":293000,"digital":1937779}}
+  "2026-04":{"n_comandas":6415,"total":45022996,"efectivo":33317016,"digital":11701979,"local":{"total":42792217,"efectivo":33024016,"digital":9764200},"apps":{"total":2230779,"efectivo":293000,"digital":1937779}},
+  "2026-05":{"n_comandas":6863,"total":49802655,"efectivo":41955942,"digital":7749613,"local":{"total":48006452,"efectivo":41695562,"digital":6213790},"apps":{"total":1796203,"efectivo":260380,"digital":1535823}},
+  "2026-06":{"n_comandas":2393,"total":18597560,"efectivo":16155036,"digital":2439724,"local":{"total":17992726,"efectivo":16097226,"digital":1892700},"apps":{"total":604834,"efectivo":57810,"digital":547024}}
 };
+
+// ───────── VENTAS MENSUALES DATA (todos los meses — rev = total real de caja) ─────────
+const VENTAS_MENSUALES_DATA = [
+  { key:'2025-09', label:"Sep '25", labelLong:"Sep 2025",  rev: CAJA_HISTORICO['2025-09'].total, tipo:'real' },
+  { key:'2025-10', label:"Oct '25", labelLong:"Oct 2025",  rev: CAJA_HISTORICO['2025-10'].total, tipo:'real' },
+  { key:'2025-11', label:"Nov '25", labelLong:"Nov 2025",  rev: CAJA_HISTORICO['2025-11'].total, tipo:'real' },
+  { key:'2025-12', label:"Dic '25", labelLong:"Dic 2025",  rev: CAJA_HISTORICO['2025-12'].total, tipo:'real' },
+  { key:'2026-01', label:"Ene '26", labelLong:"Ene 2026",  rev: CAJA_HISTORICO['2026-01'].total, tipo:'real' },
+  { key:'2026-02', label:"Feb '26", labelLong:"Feb 2026",  rev: CAJA_HISTORICO['2026-02'].total, tipo:'real' },
+  { key:'2026-03', label:"Mar '26", labelLong:"Mar 2026",  rev: CAJA_HISTORICO['2026-03'].total, tipo:'real' },
+  { key:'2026-04', label:"Abr '26", labelLong:"Abril 2026", rev: CAJA_HISTORICO['2026-04'].total, tipo:'real', ventas: VENTAS_ABRIL, dow: DOW_PROMEDIOS },
+  { key:'2026-05', label:"May '26", labelLong:"Mayo 2026",  rev: CAJA_HISTORICO['2026-05'].total, tipo:'real', ventas: VENTAS_MAYO, dow: DOW_PROMEDIOS_MAYO },
+  { key:'2026-06', label:"Jun '26", labelLong:"Junio 2026", rev: CAJA_HISTORICO['2026-06'].total, tipo:'parcial', ventas: VENTAS_JUNIO, dow: DOW_PROMEDIOS_JUNIO },
+];
 
 // ───────── HELPERS ─────────
 
@@ -1618,15 +1615,15 @@ PROVEEDORES_ALIMENTOS.forEach((p,i) => {
 
 // ───────── INGRESOS TAB ─────────
 
-const ING_MESES = ['2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04'];
-const ING_LABELS = ["Sep '25","Oct '25","Nov '25","Dic '25","Ene '26","Feb '26","Mar '26","Abr '26"];
+const ING_MESES = ['2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'];
+const ING_LABELS = ["Sep '25","Oct '25","Nov '25","Dic '25","Ene '26","Feb '26","Mar '26","Abr '26","May '26","Jun '26"];
 
 function setIngMes(key, btn) {
   document.querySelectorAll('#ing-mes-selector .mes-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   const d = CAJA_HISTORICO[key];
   if (!d) return;
-  const labelMap = {"2025-09":"Sep 2025","2025-10":"Oct 2025","2025-11":"Nov 2025","2025-12":"Dic 2025","2026-01":"Ene 2026","2026-02":"Feb 2026","2026-03":"Mar 2026","2026-04":"Abr 2026"};
+  const labelMap = {"2025-09":"Sep 2025","2025-10":"Oct 2025","2025-11":"Nov 2025","2025-12":"Dic 2025","2026-01":"Ene 2026","2026-02":"Feb 2026","2026-03":"Mar 2026","2026-04":"Abr 2026","2026-05":"May 2026","2026-06":"Jun 2026"};
   document.getElementById('ing-kpi-mes-label').textContent = 'Cobrado · ' + (labelMap[key] || key);
   document.getElementById('ing-kpi-total').textContent     = fmtARS(d.total);
   document.getElementById('ing-kpi-cmd-sub').textContent   = d.n_comandas.toLocaleString('es-AR') + ' comandas';
@@ -1728,7 +1725,7 @@ const chartIngresosCanalChart = new Chart(document.getElementById('chart-ingreso
 });
 
 // Init KPIs con el mes más reciente
-setIngMes('2026-04', document.querySelector('#ing-mes-selector .mes-btn.active'));
+setIngMes('2026-06', document.querySelector('#ing-mes-selector .mes-btn.active'));
 
 
 // ───────── CHART VENTAS MENSUALES (evolución histórica) ─────────
