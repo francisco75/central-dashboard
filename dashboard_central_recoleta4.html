@@ -435,29 +435,37 @@
   <!-- ══════════════════════════════════════════ -->
   <div class="section" id="tab-ingresos">
 
+    <!-- Selector de mes -->
+    <div class="mes-selector" id="ing-mes-selector">
+      <button class="mes-btn" onclick="setIngMes('2025-09',this)">Sep '25</button>
+      <button class="mes-btn" onclick="setIngMes('2025-10',this)">Oct '25</button>
+      <button class="mes-btn" onclick="setIngMes('2025-11',this)">Nov '25</button>
+      <button class="mes-btn" onclick="setIngMes('2025-12',this)">Dic '25</button>
+      <button class="mes-btn" onclick="setIngMes('2026-01',this)">Ene '26</button>
+      <button class="mes-btn" onclick="setIngMes('2026-02',this)">Feb '26</button>
+      <button class="mes-btn" onclick="setIngMes('2026-03',this)">Mar '26</button>
+      <button class="mes-btn active" onclick="setIngMes('2026-04',this)">Abr '26</button>
+    </div>
+
+    <!-- KPIs del mes seleccionado -->
     <div class="kpi-row" id="ingresos-kpis">
       <div class="kpi-card green">
-        <div class="kpi-label">Último Registro · Comandas</div>
-        <div class="kpi-value" id="ing-kpi-cmd">—</div>
-        <div class="kpi-sub" id="ing-kpi-cmd-sub">—</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Último Registro · Total</div>
+        <div class="kpi-label" id="ing-kpi-mes-label">Cobrado · Abr 2026</div>
         <div class="kpi-value" id="ing-kpi-total">—</div>
-        <div class="kpi-sub" id="ing-kpi-total-sub">—</div>
+        <div class="kpi-sub" id="ing-kpi-cmd-sub">—</div>
       </div>
       <div class="kpi-card blue">
         <div class="kpi-label">Efectivo</div>
         <div class="kpi-value" id="ing-kpi-efec">—</div>
         <div class="kpi-sub" id="ing-kpi-efec-pct">—</div>
       </div>
-      <div class="kpi-card orange">
+      <div class="kpi-card">
         <div class="kpi-label">Digital</div>
         <div class="kpi-value" id="ing-kpi-dig">—</div>
         <div class="kpi-sub" id="ing-kpi-dig-pct">—</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Local</div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Local (presencial)</div>
         <div class="kpi-value" id="ing-kpi-local">—</div>
         <div class="kpi-sub" id="ing-kpi-local-pct">—</div>
       </div>
@@ -468,21 +476,30 @@
       </div>
     </div>
 
+    <!-- Gráfico stacked por mes -->
+    <div class="chart-card" style="margin-bottom:var(--gap)">
+      <div class="chart-title">Cobros por Mes · Efectivo vs Digital vs Apps</div>
+      <div class="chart-sub">Datos reales del Historial de Caja de Datalive · Sep 2025 – Abr 2026</div>
+      <div style="position:relative;height:240px">
+        <canvas id="chart-ingresos-canal"></canvas>
+      </div>
+    </div>
+
+    <!-- Tabla mensual detallada -->
     <div class="table-card" style="overflow-x:auto">
-      <div class="section-title">Detalle Mensual · Ventas e Ingresos</div>
-      <table style="min-width:900px">
+      <div class="section-title">Detalle Mensual · Cobros reales por canal y medio de pago</div>
+      <table style="min-width:860px">
         <thead>
           <tr>
             <th style="min-width:160px">Métrica</th>
             <th>Sep '25</th><th>Oct '25</th><th>Nov '25</th><th>Dic '25</th>
-            <th>Ene '26</th><th>Feb '26</th><th>Mar '26</th><th>Abr '26</th>
-            <th style="background:#fffbf0">May '26</th>
+            <th>Ene '26</th><th>Feb '26</th><th>Mar '26</th><th style="background:#fffbf0">Abr '26</th>
           </tr>
         </thead>
         <tbody id="ingresos-tbody"></tbody>
       </table>
       <p style="font-size:11px;color:var(--muted);margin-top:10px">
-        Ventas Totales: unidades × precio de carta · Canal y medio de pago: Historial de Caja de Datalive (disponible solo donde se ejecutó el scraper)
+        Fuente: Historial de Caja Datalive · Sep 2025 – Abr 2026
       </p>
     </div>
 
@@ -1485,6 +1502,18 @@ const VENTAS_MENSUALES_DATA = [
   { key:'2026-06', label:"Jun '26", labelLong:"Junio 2026", rev: VENTAS_JUNIO.reduce((a,d)=>a+d.revenue,0), tipo:'parcial', ventas: VENTAS_JUNIO, dow: DOW_PROMEDIOS_JUNIO },
 ];
 
+// ───────── CAJA HISTÓRICO (medios de pago y canales, Sep 2025–Abr 2026) ─────────
+const CAJA_HISTORICO = {
+  "2025-09":{"n_comandas":987,"total":4962300,"efectivo":2956600,"digital":2001200,"local":{"total":4962300,"efectivo":2956600,"digital":2001200},"apps":{"total":0,"efectivo":0,"digital":0}},
+  "2025-10":{"n_comandas":4899,"total":27876289,"efectivo":15562650,"digital":12306939,"local":{"total":26605000,"efectivo":15391600,"digital":11206700},"apps":{"total":1271289,"efectivo":171050,"digital":1100239}},
+  "2025-11":{"n_comandas":4784,"total":30178460,"efectivo":17105970,"digital":13072490,"local":{"total":28326704,"efectivo":16803704,"digital":11523000},"apps":{"total":1851756,"efectivo":302266,"digital":1549490}},
+  "2025-12":{"n_comandas":4369,"total":27499300,"efectivo":14786649,"digital":12710751,"local":{"total":25605424,"efectivo":14554224,"digital":11049300},"apps":{"total":1893876,"efectivo":232425,"digital":1661451}},
+  "2026-01":{"n_comandas":4091,"total":28615249,"efectivo":18056332,"digital":10558917,"local":{"total":26499716,"efectivo":17739716,"digital":8760000},"apps":{"total":2115533,"efectivo":316616,"digital":1798917}},
+  "2026-02":{"n_comandas":4350,"total":28760964,"efectivo":17430556,"digital":11321507,"local":{"total":26725077,"efectivo":17130017,"digital":9586160},"apps":{"total":2035887,"efectivo":300540,"digital":1735347}},
+  "2026-03":{"n_comandas":5998,"total":37430662,"efectivo":22064834,"digital":15330328,"local":{"total":34924990,"efectivo":21857118,"digital":13032372},"apps":{"total":2505672,"efectivo":207716,"digital":2297956}},
+  "2026-04":{"n_comandas":6415,"total":45022996,"efectivo":33317016,"digital":11701979,"local":{"total":42792217,"efectivo":33024016,"digital":9764200},"apps":{"total":2230779,"efectivo":293000,"digital":1937779}}
+};
+
 // ───────── HELPERS ─────────
 
 const fmtARS = v => {
@@ -1589,61 +1618,117 @@ PROVEEDORES_ALIMENTOS.forEach((p,i) => {
 
 // ───────── INGRESOS TAB ─────────
 
-(function buildIngresos() {
-  // KPIs — último día disponible
-  const lastArr = VENTAS_JUNIO.length > 0 ? VENTAS_JUNIO : VENTAS_MAYO;
-  const last = lastArr[lastArr.length - 1];
-  document.getElementById('ing-kpi-cmd').textContent       = last.comandas != null ? last.comandas.toLocaleString('es-AR') : '—';
-  document.getElementById('ing-kpi-cmd-sub').textContent   = last.fecha;
-  document.getElementById('ing-kpi-total').textContent     = fmtARS(last.revenue);
-  document.getElementById('ing-kpi-total-sub').textContent = 'Último día con datos';
+const ING_MESES = ['2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04'];
+const ING_LABELS = ["Sep '25","Oct '25","Nov '25","Dic '25","Ene '26","Feb '26","Mar '26","Abr '26"];
 
-  // Canal — sin datos de caja disponibles
-  ['ing-kpi-efec','ing-kpi-dig','ing-kpi-local','ing-kpi-apps'].forEach(id =>
-    document.getElementById(id).textContent = 'Sin datos');
-  ['ing-kpi-efec-pct','ing-kpi-dig-pct','ing-kpi-local-pct','ing-kpi-apps-pct'].forEach(id =>
-    document.getElementById(id).textContent = 'Historial de Caja no disponible');
+function setIngMes(key, btn) {
+  document.querySelectorAll('#ing-mes-selector .mes-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const d = CAJA_HISTORICO[key];
+  if (!d) return;
+  const labelMap = {"2025-09":"Sep 2025","2025-10":"Oct 2025","2025-11":"Nov 2025","2025-12":"Dic 2025","2026-01":"Ene 2026","2026-02":"Feb 2026","2026-03":"Mar 2026","2026-04":"Abr 2026"};
+  document.getElementById('ing-kpi-mes-label').textContent = 'Cobrado · ' + (labelMap[key] || key);
+  document.getElementById('ing-kpi-total').textContent     = fmtARS(d.total);
+  document.getElementById('ing-kpi-cmd-sub').textContent   = d.n_comandas.toLocaleString('es-AR') + ' comandas';
+  document.getElementById('ing-kpi-efec').textContent      = fmtARS(d.efectivo);
+  document.getElementById('ing-kpi-efec-pct').textContent  = (d.efectivo/d.total*100).toFixed(1) + '% del total';
+  document.getElementById('ing-kpi-dig').textContent       = fmtARS(d.digital);
+  document.getElementById('ing-kpi-dig-pct').textContent   = (d.digital/d.total*100).toFixed(1) + '% del total';
+  document.getElementById('ing-kpi-local').textContent     = fmtARS(d.local.total);
+  document.getElementById('ing-kpi-local-pct').textContent = (d.local.total/d.total*100).toFixed(1) + '% del total';
+  document.getElementById('ing-kpi-apps').textContent      = fmtARS(d.apps.total);
+  document.getElementById('ing-kpi-apps-pct').textContent  = d.apps.total > 0 ? (d.apps.total/d.total*100).toFixed(1) + '% del total' : 'sin datos de apps';
 
-  // Revenue estimado para meses sin datos diarios (unidades × precio)
-  function estRev(key) {
-    const t = TOTALES_MENSUALES[key];
-    if (!t) return 0;
-    return PRODUCTOS.reduce((s, p) => s + (t[p.nombre] || 0) * p.precio, 0);
+  // Highlight bar chart
+  if (typeof chartIngresosCanalChart !== 'undefined') {
+    const idx = ING_MESES.indexOf(key);
+    chartIngresosCanalChart.data.datasets.forEach(ds => {
+      ds.borderWidth = ING_MESES.map((_, i) => i === idx ? 2 : 0);
+      ds.borderColor = ING_MESES.map((_, i) => i === idx ? '#1a1a2e' : 'transparent');
+    });
+    chartIngresosCanalChart.update();
   }
+}
 
-  const MESES = ['2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05'];
+// ── Tabla mensual ──
+(function() {
+  const tbody = document.getElementById('ingresos-tbody');
+  const MESES = ING_MESES;
 
-  const mesData = MESES.map(key => {
-    if (key === '2026-04') return {
-      rev:  VENTAS_ABRIL.reduce((a,d) => a+d.revenue,  0),
-      cmd:  VENTAS_ABRIL.reduce((a,d) => a+d.comandas, 0),
-      dias: VENTAS_ABRIL.length, tipo: 'real'
-    };
-    if (key === '2026-05') return {
-      rev:  VENTAS_MAYO.reduce((a,d) => a+d.revenue,  0),
-      cmd:  VENTAS_MAYO.reduce((a,d) => a+d.comandas, 0),
-      dias: VENTAS_MAYO.length, tipo: 'real'
-    };
-    return { rev: estRev(key), cmd: null, dias: null, tipo: 'est' };
-  });
+  const pct = (a, b) => b > 0 ? (a/b*100).toFixed(1)+'%' : '—';
+  const cell = (v, last) => `<td style="text-align:right${last?' background:#fffbf0':''}">` + v + '</td>';
 
   const rows = [
-    { label: 'Revenue Total',      fn: d => fmtARS(d.rev) + (d.tipo==='est' ? '<sup style="color:var(--muted);font-size:9px"> est</sup>' : '') },
-    { label: 'Comandas',           fn: d => d.cmd  != null ? d.cmd.toLocaleString('es-AR') : '—' },
-    { label: 'Días con datos',     fn: d => d.dias != null ? d.dias : '—' },
-    { label: 'Revenue / Día',      fn: d => d.dias ? fmtARS(Math.round(d.rev / d.dias)) : '—' },
-    { label: 'Revenue / Comanda',  fn: d => d.cmd  ? fmtARS(Math.round(d.rev / d.cmd))  : '—' },
+    { label: 'Cobrado Total',      fn: d => `<strong>${fmtARS(d.total)}</strong>` },
+    { label: 'Comandas',           fn: d => d.n_comandas.toLocaleString('es-AR') },
+    { label: 'Ticket Promedio',    fn: d => fmtARS(Math.round(d.total/d.n_comandas)) },
+    { label: '— Efectivo',         fn: d => fmtARS(d.efectivo) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.efectivo,d.total)}</span>` },
+    { label: '— Digital',          fn: d => fmtARS(d.digital)  + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.digital,d.total)}</span>` },
+    { label: 'Local (presencial)', fn: d => fmtARS(d.local.total) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.local.total,d.total)}</span>` },
+    { label: '  · Efec local',     fn: d => fmtARS(d.local.efectivo) },
+    { label: '  · Dig local',      fn: d => fmtARS(d.local.digital) },
+    { label: 'Apps',               fn: d => d.apps.total > 0 ? fmtARS(d.apps.total) + `<span style="font-size:10px;color:var(--muted)"> ${pct(d.apps.total,d.total)}</span>` : '—' },
   ];
 
-  const tbody = document.getElementById('ingresos-tbody');
   rows.forEach(row => {
-    const cells = mesData.map((d, i) => {
-      const hi = (i >= 7) ? ' style="background:#fffbf0"' : '';
-      return `<td${hi}>${row.fn(d)}</td>`;
+    const cells = MESES.map((key, i) => {
+      const d = CAJA_HISTORICO[key];
+      return cell(d ? row.fn(d) : '—', i === MESES.length-1);
     }).join('');
-    tbody.innerHTML += `<tr><td style="font-weight:500;color:var(--muted)">${row.label}</td>${cells}</tr>`;
+    tbody.innerHTML += `<tr><td style="font-weight:500;color:var(--muted);white-space:nowrap">${row.label}</td>${cells}</tr>`;
   });
 })();
+
+// ── Stacked bar chart ──
+const chartIngresosCanalChart = new Chart(document.getElementById('chart-ingresos-canal').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: ING_LABELS,
+    datasets: [
+      {
+        label: 'Efectivo Local',
+        data: ING_MESES.map(k => CAJA_HISTORICO[k]?.local.efectivo || 0),
+        backgroundColor: '#3b82f6CC', borderRadius: 0,
+      },
+      {
+        label: 'Digital Local',
+        data: ING_MESES.map(k => CAJA_HISTORICO[k]?.local.digital || 0),
+        backgroundColor: '#10b981CC', borderRadius: 0,
+      },
+      {
+        label: 'Apps',
+        data: ING_MESES.map(k => CAJA_HISTORICO[k]?.apps.total || 0),
+        backgroundColor: '#f5a623CC', borderRadius: 4,
+      },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const d = CAJA_HISTORICO[ING_MESES[ctx.dataIndex]];
+            const pct = d ? (ctx.parsed.y / d.total * 100).toFixed(1) : '?';
+            return ` ${ctx.dataset.label}: ${fmtARS(ctx.parsed.y)} (${pct}%)`;
+          },
+          footer: items => {
+            const d = CAJA_HISTORICO[ING_MESES[items[0].dataIndex]];
+            return d ? `Total: ${fmtARS(d.total)}` : '';
+          }
+        }
+      }
+    },
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, ticks: { callback: v => fmtARS(v) }, grid: { color: '#f3f4f6' } }
+    }
+  }
+});
+
+// Init KPIs con el mes más reciente
+setIngMes('2026-04', document.querySelector('#ing-mes-selector .mes-btn.active'));
 
 
 // ───────── CHART VENTAS MENSUALES (evolución histórica) ─────────
