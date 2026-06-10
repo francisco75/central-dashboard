@@ -1656,16 +1656,15 @@ function setIngMes(key, btn) {
   const pct = (a, b) => b > 0 ? (a/b*100).toFixed(1)+'%' : '—';
   const cell = (v, isLast) => `<td style="text-align:right${isLast?' ;background:#fffbf0':''}">` + v + '</td>';
 
-  // MoM variation helper
+  // MoM variation helper — inline, al lado del valor
   const mom = (cur, prev) => {
     if (!prev || !cur || prev === 0) return '';
     const chg = ((cur - prev) / prev * 100).toFixed(1);
     const color = chg >= 0 ? '#10b981' : '#ef4444';
-    const sign = chg >= 0 ? '+' : '';
-    return `<br><span style="font-size:9px;color:${color}">${sign}${chg}%</span>`;
+    const arrow = chg >= 0 ? '▲' : '▼';
+    return ` <span style="font-size:9px;color:${color}">${arrow}${Math.abs(chg)}%</span>`;
   };
 
-  // Value extractor per row for MoM
   const rows = [
     { label: 'Cobrado Total',      val: d => d.total,
       fn: d => `<strong>${fmtARS(d.total)}</strong>` },
