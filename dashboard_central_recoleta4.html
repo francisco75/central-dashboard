@@ -345,7 +345,7 @@
     <div class="mes-selector">
       <button class="mes-btn active" onclick="setMes('abril',this)">📅 Abril 2026 (completo)</button>
       <button class="mes-btn" onclick="setMes('mayo',this)">📅 Mayo 2026 <span style="font-size:10px;opacity:.7">25 días</span></button>
-      <button class="mes-btn" onclick="setMes('junio',this)">📅 Junio 2026 <span style="font-size:10px;opacity:.7">1 día</span></button>
+      <button class="mes-btn" onclick="setMes('junio',this)">📅 Junio 2026 <span id="junio-dias-span" style="font-size:10px;opacity:.7">1 día</span></button>
     </div>
 
     <!-- KPIs -->
@@ -946,7 +946,8 @@
       </div>
     </div>
 
-    <!-- Comparativa semana a semana — Mayo 2026 -->
+    <!-- Comparativa semana a semana — Empanadas -->
+    <div id="emp-mes-filter" class="mes-selector" style="margin-bottom:8px"></div>
     <div class="table-card" style="margin-bottom:var(--gap)">
       <div class="rent-header">
         <div>
@@ -1041,6 +1042,7 @@
       </table>
     </div>
 
+    <div id="med-mes-filter" class="mes-selector" style="margin-bottom:8px"></div>
     <div class="table-card">
       <div class="rent-header">
         <div>
@@ -1395,6 +1397,7 @@ const VENTAS_JUNIO = [
   { fecha: '06/06 Sáb',  revenue:    975200 },
   { fecha: '08/06 Lun',  revenue:   1168500 },
 ];
+(function(){ const sp = document.getElementById('junio-dias-span'); if(sp) sp.textContent = VENTAS_JUNIO.length + (VENTAS_JUNIO.length===1?' día':' días'); })();
 
 // Avg por día de semana — JUNIO 2026 (sólo datos disponibles)
 const DOW_PROMEDIOS_JUNIO = [
@@ -1995,7 +1998,7 @@ function buildSemanasDynamic(tbodyId, diariasObj, feriadosSet, theadId, diariasM
       const diso = dt2.toISOString().split('T')[0];
       const mVal = diariasM && diariasM[diso] != null ? diariasM[diso] : null;
       const tVal = diariasT && diariasT[diso] != null ? diariasT[diso] : null;
-      const shiftLine = (mVal !== null && tVal !== null)
+      const shiftLine = (mVal !== null && tVal !== null && (mVal > 0 || tVal > 0))
         ? `<span style="font-size:9px;color:var(--muted);display:block;line-height:1.3">M:${mVal} T:${tVal}</span>`
         : '';
       return `<td style="text-align:center;background:${bg};font-weight:600">${v.toLocaleString('es-AR')}${shiftLine}${nota}</td>`;
@@ -2306,14 +2309,43 @@ const empTotal = EMPANADAS.reduce((a,p) => a+p[1], 0);
   });
 })();
 
-// ── Tabla semana a semana empanadas — mes en curso (dinámico) ──
+// ── Tabla semana a semana empanadas — mes seleccionable ──
 (function() {
   const FERIADOS_EMP = new Set(['2026-05-01','2026-05-25']);
-  const mesLabel = buildSemanasDynamic('emp-semanas-tbody', EMP_DIARIAS, FERIADOS_EMP, 'emp-semanas-thead', EMP_DIARIAS_M, EMP_DIARIAS_T);
-  if (mesLabel) {
-    const t = document.getElementById('title-emp-semanas');
-    if(t) t.textContent = 'Empanadas por semana · ' + mesLabel;
+  const MONTH_NAMES = {1:'Ene',2:'Feb',3:'Mar',4:'Abr',5:'May',6:'Jun',7:'Jul',8:'Ago',9:'Sep',10:'Oct',11:'Nov',12:'Dic'};
+
+  function monthLabel(ym) {
+    const [y, m] = ym.split('-');
+    return MONTH_NAMES[parseInt(m)] + ' ' + y;
   }
+
+  function buildEmpMes(ym) {
+    const filtered = {}, filteredM = {}, filteredT = {};
+    for (const [k,v] of Object.entries(EMP_DIARIAS))   { if (k.startsWith(ym)) filtered[k]  = v; }
+    for (const [k,v] of Object.entries(EMP_DIARIAS_M)) { if (k.startsWith(ym)) filteredM[k] = v; }
+    for (const [k,v] of Object.entries(EMP_DIARIAS_T)) { if (k.startsWith(ym)) filteredT[k] = v; }
+    buildSemanasDynamic('emp-semanas-tbody', filtered, FERIADOS_EMP, 'emp-semanas-thead', filteredM, filteredT);
+    const t = document.getElementById('title-emp-semanas');
+    if (t) t.textContent = 'Empanadas por semana · ' + monthLabel(ym);
+  }
+
+  const months = [...new Set(Object.keys(EMP_DIARIAS).map(k => k.slice(0,7)))].sort();
+  const container = document.getElementById('emp-mes-filter');
+  if (container) {
+    months.forEach((ym, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'mes-btn' + (i === months.length-1 ? ' active' : '');
+      btn.textContent = monthLabel(ym);
+      btn.onclick = function() {
+        container.querySelectorAll('.mes-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        buildEmpMes(ym);
+      };
+      container.appendChild(btn);
+    });
+  }
+
+  if (months.length) buildEmpMes(months[months.length - 1]);
 })();
 
 // Proyección mayo — definida aquí para uso en todas las secciones
@@ -2544,14 +2576,43 @@ new Chart(document.getElementById('chart-med-evolucion').getContext('2d'), {
 })();
 
 
-// ── Tabla semana a semana medialunas — mes en curso (dinámico) ──
+// ── Tabla semana a semana medialunas — mes seleccionable ──
 (function() {
   const FERIADOS_MED = new Set(['2026-05-01','2026-05-25']);
-  const mesLabel = buildSemanasDynamic('med-semanas-tbody', MED_DIARIAS, FERIADOS_MED, 'med-semanas-thead', MED_DIARIAS_M, MED_DIARIAS_T);
-  if (mesLabel) {
-    const t = document.getElementById('title-med-semanas');
-    if(t) t.textContent = 'Medialunas por semana · ' + mesLabel;
+  const MONTH_NAMES = {1:'Ene',2:'Feb',3:'Mar',4:'Abr',5:'May',6:'Jun',7:'Jul',8:'Ago',9:'Sep',10:'Oct',11:'Nov',12:'Dic'};
+
+  function monthLabel(ym) {
+    const [y, m] = ym.split('-');
+    return MONTH_NAMES[parseInt(m)] + ' ' + y;
   }
+
+  function buildMedMes(ym) {
+    const filtered = {}, filteredM = {}, filteredT = {};
+    for (const [k,v] of Object.entries(MED_DIARIAS))   { if (k.startsWith(ym)) filtered[k]  = v; }
+    for (const [k,v] of Object.entries(MED_DIARIAS_M)) { if (k.startsWith(ym)) filteredM[k] = v; }
+    for (const [k,v] of Object.entries(MED_DIARIAS_T)) { if (k.startsWith(ym)) filteredT[k] = v; }
+    buildSemanasDynamic('med-semanas-tbody', filtered, FERIADOS_MED, 'med-semanas-thead', filteredM, filteredT);
+    const t = document.getElementById('title-med-semanas');
+    if (t) t.textContent = 'Medialunas por semana · ' + monthLabel(ym);
+  }
+
+  const months = [...new Set(Object.keys(MED_DIARIAS).map(k => k.slice(0,7)))].sort();
+  const container = document.getElementById('med-mes-filter');
+  if (container) {
+    months.forEach((ym, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'mes-btn' + (i === months.length-1 ? ' active' : '');
+      btn.textContent = monthLabel(ym);
+      btn.onclick = function() {
+        container.querySelectorAll('.mes-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        buildMedMes(ym);
+      };
+      container.appendChild(btn);
+    });
+  }
+
+  if (months.length) buildMedMes(months[months.length - 1]);
 })();
 
 // ───────── OTROS COMESTIBLES ─────────
