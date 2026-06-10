@@ -346,7 +346,7 @@
     <!-- Gráfico evolución mensual -->
     <div class="chart-card" style="margin-bottom:var(--gap)">
       <div class="chart-title">Evolución de Ventas Mensuales</div>
-      <div class="chart-sub" id="ventas-mensual-sub">Sep 2025 – Jun 2026 · revenue estimado (gris) y real (azul)</div>
+      <div class="chart-sub" id="ventas-mensual-sub">Sep 2025 – Jun 2026 · azul = datos Datalive · naranja = mes en curso</div>
       <div style="position:relative;height:200px">
         <canvas id="chart-ventas-mensuales"></canvas>
       </div>
@@ -1650,7 +1650,7 @@ PROVEEDORES_ALIMENTOS.forEach((p,i) => {
 
 const _momColors = VENTAS_MENSUALES_DATA.map((m, i) => {
   if (m.key === '2026-04') return '#e8470a'; // mes activo inicial
-  return m.tipo === 'real' ? '#3b82f6AA' : m.tipo === 'parcial' ? '#f5a623AA' : '#9ca3afAA';
+  return m.tipo === 'parcial' ? '#f5a623AA' : '#3b82f6AA';
 });
 
 const _barLabels = {
@@ -1703,7 +1703,7 @@ const chartVentasMensuales = new Chart(document.getElementById('chart-ventas-men
         callbacks: {
           label: ctx => {
             const m = VENTAS_MENSUALES_DATA[ctx.dataIndex];
-            const suffix = m.tipo === 'est' ? ' (estimado)' : m.tipo === 'parcial' ? ' (parcial)' : ' (real)';
+            const suffix = m.tipo === 'parcial' ? ' (mes en curso)' : m.ventas ? ' (datos diarios)' : ' (unidades × precio)';
             const lines = [' ' + fmtARS(ctx.parsed.y) + suffix];
             if (ctx.dataIndex > 0) {
               const prev = VENTAS_MENSUALES_DATA[ctx.dataIndex - 1].rev;
@@ -1812,7 +1812,7 @@ function setMes(key, btn) {
   if (typeof chartVentasMensuales !== 'undefined') {
     const idx = VENTAS_MENSUALES_DATA.findIndex(m => m.key === key);
     chartVentasMensuales.data.datasets[0].backgroundColor = VENTAS_MENSUALES_DATA.map((m, i) =>
-      i === idx ? '#e8470a' : m.tipo === 'real' ? '#3b82f6AA' : m.tipo === 'parcial' ? '#f5a623AA' : '#9ca3afAA'
+      i === idx ? '#e8470a' : m.tipo === 'parcial' ? '#f5a623AA' : '#3b82f6AA'
     );
     chartVentasMensuales.update();
   }
