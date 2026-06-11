@@ -237,6 +237,42 @@
     /* Landscape mobile pequeño */
     @media(max-width:480px){
       .kpi-value { font-size:18px; }
+
+      /* Mes selector: botones más chicos, scroll horizontal */
+      .mes-selector {
+        flex-wrap:nowrap;
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+        scrollbar-width:none;
+        padding-bottom:4px;
+      }
+      .mes-selector::-webkit-scrollbar { display:none; }
+      .mes-btn {
+        padding:5px 10px;
+        font-size:11px;
+        flex-shrink:0;
+        border-width:1.5px;
+      }
+
+      /* Tablas de datos: fuente más chica, celdas compactas */
+      .table-card table { font-size:11px; }
+      .table-card th { font-size:10px; padding:6px 6px; }
+      .table-card td { padding:6px 6px; }
+
+      /* Horizontal ranking charts: más altura para que se lean los labels */
+      .chart-card canvas[id*="ranking"] { max-height:none; }
+
+      /* Tablas con scroll: primera columna sticky en mobile */
+      #ingresos-table th:first-child,
+      #ingresos-table td:first-child,
+      .table-card table th:first-child,
+      .table-card table td:first-child {
+        position:sticky;
+        left:0;
+        background:var(--card);
+        z-index:1;
+        box-shadow:2px 0 4px rgba(0,0,0,.06);
+      }
     }
   </style>
 </head>
@@ -488,7 +524,7 @@
     </div>
 
     <!-- Tabla mensual detallada -->
-    <div class="table-card" style="overflow-x:auto">
+    <div class="table-card" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
       <div class="section-title">Detalle Mensual · Cobros reales por canal y medio de pago</div>
       <table style="min-width:860px" id="ingresos-table">
         <thead id="ingresos-thead"></thead>
