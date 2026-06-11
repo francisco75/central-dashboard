@@ -59,6 +59,10 @@ jobs:
           echo "=== docs/ contenido ==="
           ls -la docs/
           [ -f docs/dashboard_central_recoleta4.html ] && mv docs/dashboard_central_recoleta4.html docs/index.html || echo "archivo ya en docs/index.html"
+          # Inject PWA meta tags into staticrypt wrapper <head>
+          sed -i 's|</head>|<meta name="theme-color" content="#e8470a"><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Central R4"></head>|' docs/index.html
+          # Inject SW registration before </body>
+          sed -i 's|</body>|<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js").catch(function(){})}</script></body>|' docs/index.html
 
       # ── 5. Commit y push ─────────────────────────────────────────
       - name: Guardar cambios en el repo

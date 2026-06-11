@@ -1,17 +1,15 @@
-const CACHE_NAME = 'central-r4-v1';
-const ASSETS = [
-  './',
-  './index.html',
+const CACHE_NAME = 'central-r4-v2';
+const STATIC_ASSETS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
 ];
 
-// Install: cache shell assets
+// Install: only cache static assets (NOT index.html — it changes daily)
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS))
+      .then(cache => cache.addAll(STATIC_ASSETS))
       .then(() => self.skipWaiting())
   );
 });
@@ -25,16 +23,16 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Fetch: network first, fallback to cache
+// Fetch: always go to network for HTML, cache-first for static assets
 self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+  // HTML pages: always network, no cache
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/')) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+  // Static assets: cache first, then network
   e.respondWith(
-    fetch(e.request)
-      .then(res => {
-        // Update cache with fresh response
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-        return res;
-      })
-      .catch(() => caches.match(e.request))
+    caches.match(e.request).then(cached => cached || fetch(e.request))
   );
 });
