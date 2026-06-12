@@ -184,7 +184,7 @@ async function cargarDatalive() {
     if (!res.ok) throw new Error(await res.text());
     state.sistemaStock = await res.json(); save();
     showToast("✅ Stock cargado desde Datalive", "success");
-    if (document.getElementById("screen-produto").classList.contains("active")) renderProd();
+    if (document.getElementById("screen-producto").classList.contains("active")) renderProd();
   } catch(e) { showToast("❌ Error Datalive: " + e.message, "error"); }
   finally { btn.innerHTML = "⬇️ Cargar stock desde Datalive"; btn.disabled = false; }
 }
@@ -198,7 +198,7 @@ function mostrarPantallaProducto() {
 }
 
 function volverInicio() {
-  document.getElementById("screen-produto").classList.remove("active");
+  document.getElementById("screen-producto").classList.remove("active");
   document.getElementById("screen-inicio").classList.add("active");
   renderCatList(); actualizarBotonEnviar();
 }
@@ -222,17 +222,17 @@ function navProd(dir) {
 
 function renderProd() {
   const cat  = CATEGORIAS[curCatIdx];
-  const prod = cat.produtos[curProdIdx];
-  const pct  = Math.round(((curProdIdx+1) / cat.produtos.length) * 100);
+  const prod = cat.productos[curProdIdx];
+  const pct  = Math.round(((curProdIdx+1) / cat.productos.length) * 100);
   document.getElementById("prod-cat-label").textContent = cat.nombre;
-  document.getElementById("prod-pos-label").textContent = `${curProdIdx+1} de ${cat.produtos.length}`;
+  document.getElementById("prod-pos-label").textContent = `${curProdIdx+1} de ${cat.productos.length}`;
   document.getElementById("prod-pct").textContent = pct + "%";
   document.getElementById("prod-progress-fill").style.width = pct + "%";
-  document.getElementById("prod-nome").textContent = prod;
+  document.getElementById("prod-nombre").textContent = prod;
   const sys = state.sistemaStock[normalizeKey(prod)] ?? "—";
   document.getElementById("prod-sistema").textContent = sys;
   renderCasilleros(prod, columnasParaTipo(cat.tipo), sys);
-  const isLast = curProdIdx === cat.produtos.length-1 && curCatIdx === CATEGORIAS.length-1;
+  const isLast = curProdIdx === cat.productos.length-1 && curCatIdx === CATEGORIAS.length-1;
   const btn = document.getElementById("btn-next");
   btn.textContent = isLast ? "Finalizar ✓" : "Siguiente →";
   btn.className = "btn-next" + (isLast ? " finish" : "");
@@ -305,7 +305,7 @@ function recalcularTotal(columnas, sys, saved) {
 }
 
 function guardarCasilleros() {
-  const prod = CATEGORIAS[curCatIdx].produtos[curProdIdx];
+  const prod = CATEGORIAS[curCatIdx].productos[curProdIdx];
   const cat  = CATEGORIAS[curCatIdx];
   const cols = columnasParaTipo(cat.tipo);
   const data = { __done: true };
