@@ -11,7 +11,7 @@ import unicodedata
 from playwright.async_api import async_playwright
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_dotenv()  # busca .env subiendo el árbol de directorios automáticamente
 
 BASE_URL = "https://vm4.zona.dlsrvz.com/central/sistema/prd/index.php"
 DL_USER  = os.environ["DATALIVE_USER"]

@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 from productos import CATEGORIAS, columnas_de
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_dotenv()
 
 DESTINATARIO = "central.recoleta.4@gmail.com"
 REMITENTE    = os.environ.get("GMAIL_FROM", "central.recoleta.4@gmail.com")
